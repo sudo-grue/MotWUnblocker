@@ -17,8 +17,8 @@ This can disable previews and trigger security warnings when opening the file.
 
 After building or publishing the project, you’ll find the compiled executables in your local build output directories:
 
-- [MotWUnblocker-sc.exe (Self-Contained)](https://github.com/sudo-grue/MotWUnblocker/tree/main/bin/Release/SelfContained/MotWUnblocker-sc.exe)
-- [MotWUnblocker-fdd.exe (Framework-Dependent)](https://github.com/sudo-grue/MotWUnblocker/tree/main/bin/Release/FddSingle/MotWUnblocker-fdd.exe)
+- [MotWUnblocker-sc.exe (Self-Contained; 60MB)](https://github.com/sudo-grue/MotWUnblocker/tree/main/bin/Release/SelfContained/MotWUnblocker-sc.exe)
+- [MotWUnblocker-fdd.exe (Framework-Dependent; 177KB)](https://github.com/sudo-grue/MotWUnblocker/tree/main/bin/Release/FddSingle/MotWUnblocker-fdd.exe)
 
 Download the desired `.exe` from either directory, depending on your preferred build flavor.
 
