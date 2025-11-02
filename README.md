@@ -1,103 +1,145 @@
 # MotW Unblocker
 
-A Windows utility for removing Mark-of-the-Web (MotW) metadata from files.
+A Windows utility for viewing, adding, or removing **Mark-of-the-Web (MotW)** metadata on files.
 
 ## Overview
 
-When files are downloaded from the internet, Windows automatically adds a Zone.Identifier alternate data stream to mark them as originating from an untrusted source. This causes security warnings when opening files. MotW Unblocker provides a graphical interface to manage these marks on trusted files.
+When a file is downloaded from the internet, Windows adds a `Zone.Identifier` alternate data stream to mark it as “untrusted.”
+This can disable previews and trigger security warnings when opening the file.
+
+**MotW Unblocker** provides a graphical interface to safely inspect and manage this metadata for trusted files.
+
+---
 
 ## Installation
 
-### Pre-built Binary
+### Pre-built Binaries
 
-Download the latest release from the releases section. The application is distributed as a self-contained executable requiring no installation.
+Two build variants are available:
 
-1. Download `MotWUnblocker.exe`
-2. Copy to desired location
-3. Run the application
+| Build Type              | File                    | Description                                                                               |
+| ----------------------- | ----------------------- | ----------------------------------------------------------------------------------------- |
+| **Self-Contained**      | `MotWUnblocker-sc.exe`  | Includes the .NET runtime. Runs on any Windows 10/11 x64 system with no dependencies.     |
+| **Framework-Dependent** | `MotWUnblocker-fdd.exe` | Smaller binary that relies on the machine’s installed **.NET 9 Windows Desktop Runtime**. |
+
+**To use:**
+1. Download the desired `.exe` from the [Releases](../../releases) page.
+2. Copy it anywhere (e.g., Desktop or Tools folder).
+3. Double-click to run — no installation or admin rights required.
 
 ### System Requirements
 
-- Windows 10 or later (x64)
-- No additional dependencies required
+| Requirement | Self-Contained                       | Framework-Dependent                         |
+| ----------- | ------------------------------------ | ------------------------------------------- |
+| OS          | Windows 10 (21H2+) or Windows 11 x64 | Windows 10 (21H2+) or Windows 11 x64        |
+| Runtime     | Bundled                              | Requires `Microsoft.WindowsDesktop.App 9.x` |
+
+---
 
 ## Usage
 
 ### Adding Files
+- Click **“Add Files…”** to browse and select files, or
+- Drag-and-drop files directly into the window.
 
-Files can be added to the application using either method:
-- Click "Add Files..." to browse and select files
-- Drag and drop files directly into the application window
-
-### Managing Mark-of-the-Web
-
-1. Select files using the checkbox column
-2. Click "Unblock Selected" to remove MotW metadata
-3. Click "Block (Add MotW)" to add MotW metadata
-4. Click "Refresh Status" to update the current MotW state
+### Managing MotW
+1. Select one or more files using the checkboxes.
+2. Click **Unblock Selected** to remove the `Zone.Identifier` stream.
+3. Click **Block (Add MotW)** to restore it.
+4. Click **Refresh Status** to rescan file metadata.
 
 ### Features
-
-- Batch processing support
+- Batch processing
 - Real-time status indicators
-- Drag and drop interface
-- Comprehensive activity logging
+- Drag-and-drop support
+- Detailed local logging
+- No elevated permissions required
 
 ### Logging
+Logs are stored at:
+`%LOCALAPPDATA%\MotWUnblocker\unblocker.log`
 
-Application logs are stored in: `%LOCALAPPDATA%\MotWUnblocker\unblocker.log`
+Use the **“Open Log Folder”** button inside the app to view logs.
 
-Use the "Open Log Folder" button to access logs directly from the application.
+---
 
 ## Developer Information
 
-### Building from Source
+### Building From Source
 
-Build the application using the .NET SDK:
+#### Restore Dependencies
+Before the first build:
+```powershell
+dotnet restore
+```
+This downloads any required NuGet packages and generates the project assets file.
 
-```bash
-dotnet publish -c Release
+#### Build a Single Flavor
+```powershell
+# Full, self-contained EXE
+dotnet publish -c Release -p:PublishFlavor=SelfContained
+# → bin\Release\SelfContained\MotWUnblocker-sc.exe
+
+# Small, framework-dependent EXE (uses installed .NET runtime)
+dotnet publish -c Release -p:PublishFlavor=FddSingle
+# → bin\Release\FddSingle\MotWUnblocker-fdd.exe
 ```
 
-Output location:
+Each `dotnet publish` automatically performs a restore if needed.
+
+#### Build Both Flavors Together
+If you prefer one command for both:
+```powershell
+dotnet msbuild -t:PublishBoth -p:Configuration=Release
+# → bin\Release\SelfContained\MotWUnblocker-sc.exe
+# → bin\Release\FddSingle\MotWUnblocker-fdd.exe
 ```
-bin\Release\net9.0-windows\win-x64\publish\MotWUnblocker.exe
-```
+
+> **Note:** `dotnet msbuild` does *not* restore automatically, so the `-restore` flag (or a separate `dotnet restore`) is required.
+
+---
 
 ### Project Structure
-
 ```
 Models/           Data models and view models
-Services/         Core business logic
-Utils/            Logging and utility functions
-MainWindow.xaml   User interface definition
+Services/         Core logic for MotW read/write
+Utils/            Logging and helper functions
+MainWindow.xaml   WPF user interface
 ```
 
 ### Technical Specifications
+- **Framework:** .NET 9.0
+- **UI:** Windows Presentation Foundation (WPF)
+- **Deployment:** Dual-flavor (Self-Contained + Framework-Dependent)
+- **Target Platform:** Windows x64
+- **Binary Size:**
+  - Self-Contained ≈ 60 MB
+  - Framework-Dependent ≈ 176 KB
 
-- **Framework**: .NET 9.0
-- **UI Framework**: Windows Presentation Foundation (WPF)
-- **Deployment**: Self-contained single-file executable
-- **Binary Size**: ~64 MB (includes .NET runtime)
-- **Target Platform**: Windows x64
+### Build Configuration Summary
+- `PublishTrimmed = false` (WPF-safe)
+- `PublishSingleFile = true` for both flavors
+- `SelfContained` toggled per flavor
+- Optional compression enabled for single-file mode
+- Custom MSBuild target **PublishBoth** builds both flavors sequentially
+- Each flavor publishes into its own folder (`bin\Release\SelfContained\` and `bin\Release\FddSingle\`)
 
-### Build Configuration
+---
 
-The project is configured for standalone deployment:
+## Security Considerations
 
-- Self-contained runtime (no .NET installation required)
-- Single-file publishing with compression
-- Ready-to-run compilation for improved startup performance
-- NTFS alternate data stream manipulation
+This utility modifies NTFS **alternate data streams** only.
+File content and hashes remain unchanged.
+Use on trusted files only — removing MotW should never be used to bypass corporate or system security controls.
 
-### Security Considerations
-
-This utility modifies NTFS alternate data streams (Zone.Identifier) without altering file content. Exercise caution and only process files from trusted sources.
+---
 
 ## License
 
-MIT License - See LICENSE file for details.
+**MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## Support
 
-For issues or feature requests, please use the GitHub issue tracker.
+For issues, feature requests, or build questions, please open an issue on the project’s GitHub **Issues** page.
