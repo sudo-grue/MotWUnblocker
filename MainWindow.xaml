@@ -9,73 +9,95 @@
         AllowDrop="True"
         Drop="Window_Drop"
         DragOver="Window_DragOver">
-    <DockPanel>
 
-        <ToolBar DockPanel.Dock="Top">
-            <Button Click="AddFiles_Click"
-                    Padding="12,4"
-                    Margin="0,0,6,0">Add Files…</Button>
-            <Button Click="RemoveSelected_Click"
-                    Padding="12,4"
-                    Margin="0,0,6,0">Remove Selected</Button>
-            <Separator/>
-            <Button Click="Refresh_Click"
-                    Padding="12,4"
-                    Margin="0,0,6,0">Refresh Status</Button>
-            <Separator/>
-            <Button Click="UnblockSelected_Click"
-                    Padding="12,4"
-                    Margin="0,0,6,0">Unblock Selected</Button>
-            <Button Click="BlockSelected_Click"
-                    Padding="12,4"
-                    Margin="0,0,6,0">Block (Add MotW)</Button>
-            <Separator/>
-            <Button Click="OpenLogFolder_Click"
-                    Padding="12,4"
-                    Margin="0,0,6,0">Open Log Folder</Button>
-            <TextBlock Text="Drag &amp; drop files here, or click Add Files…"
-                    Margin="12,0,0,0"
-                    VerticalAlignment="Center"/>
-        </ToolBar>
+        <DockPanel>
 
-        <DataGrid x:Name="Grid"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  IsReadOnly="True"
-                  SelectionMode="Extended"
-                  Margin="8"
-                  ItemsSource="{Binding}">
-            <DataGrid.Columns>
-                <DataGridCheckBoxColumn Binding="{Binding Selected, Mode=TwoWay}"
-                        Header="✔"
-                        Width="40"/>
-                <DataGridTextColumn Binding="{Binding Name}"
-                        Header="File"
-                        Width="*"/>
-                <DataGridTextColumn Binding="{Binding Extension}"
-                        Header="Ext"
-                        Width="60"/>
-                <DataGridTextColumn Binding="{Binding SizeDisplay}"
-                        Header="Size"
-                        Width="100"/>
-                <DataGridTextColumn Binding="{Binding ModifiedLocal}"
-                        Header="Modified"
-                        Width="160"/>
-                <DataGridTextColumn Binding="{Binding FullPath}"
-                        Header="Path"
-                        Width="2*"/>
-                <DataGridTextColumn Binding="{Binding HasMotW}"
-                        Header="Has MotW"
-                        Width="90"/>
-            </DataGrid.Columns>
-        </DataGrid>
+                <ToolBar DockPanel.Dock="Top">
+                        <Button Click="AddFiles_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,6,0">Add Files…</Button>
+                        <Button Click="RemoveSelected_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,6,0">Remove Selected</Button>
+                        <Separator/>
+                        <Button Click="Refresh_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,6,0">Refresh Status</Button>
+                        <Separator/>
+                        <Button Click="UnblockSelected_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,6,0">Unblock Selected</Button>
+                        <Button Click="BlockSelected_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,6,0">Block (Add MotW)</Button>
+                        <Separator/>
+                        <Button Click="OpenLogFolder_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,6,0">Open Log Folder</Button>
+                        <TextBlock Text="Drag & drop files here, or click Add Files…"
+                                        Margin="12,0,0,0"
+                                        VerticalAlignment="Center"/>
+                </ToolBar>
 
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusText"
-                        Text="Ready"/>
-            </StatusBarItem>
-        </StatusBar>
+                <DataGrid x:Name="Grid"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Extended"
+                          Margin="8"
+                          ItemsSource="{Binding}">
 
-    </DockPanel>
+                        <DataGrid.Columns>
+
+                                <!-- OPTION C: Template column with real CheckBox control -->
+                                <DataGridTemplateColumn Header="✔"
+                                                Width="40"
+                                                IsReadOnly="True">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                        <CheckBox
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- All other columns are read-only text -->
+                                <DataGridTextColumn Binding="{Binding Name}"
+                                                Header="File"
+                                                Width="*"
+                                                IsReadOnly="True"/>
+                                <DataGridTextColumn Binding="{Binding Extension}"
+                                                Header="Ext"
+                                                Width="60"
+                                                IsReadOnly="True"/>
+                                <DataGridTextColumn Binding="{Binding SizeDisplay}"
+                                                Header="Size"
+                                                Width="100"
+                                                IsReadOnly="True"/>
+                                <DataGridTextColumn Binding="{Binding ModifiedLocal}"
+                                                Header="Modified"
+                                                Width="160"
+                                                IsReadOnly="True"/>
+                                <DataGridTextColumn Binding="{Binding FullPath}"
+                                                Header="Path"
+                                                Width="2*"
+                                                IsReadOnly="True"/>
+                                <DataGridTextColumn Binding="{Binding HasMotW}"
+                                                Header="Has MotW"
+                                                Width="90"
+                                                IsReadOnly="True"/>
+
+                        </DataGrid.Columns>
+                </DataGrid>
+
+                <StatusBar DockPanel.Dock="Bottom">
+                        <StatusBarItem>
+                                <TextBlock x:Name="StatusText"
+                                                Text="Ready"/>
+                        </StatusBarItem>
+                </StatusBar>
+
+        </DockPanel>
 </Window>
