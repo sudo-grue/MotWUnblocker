@@ -17,10 +17,21 @@
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+
+    <Copyright>Copyright © 2025 sudo-grue</Copyright>
+    <RepositoryUrl>https://github.com/sudo-grue/MotWTools</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/sudo-grue/MotWTools</PackageProjectUrl>
 
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <ApplicationIcon></ApplicationIcon>
+    <!-- TODO: Add application icon file (app.ico) -->
+    <!-- <ApplicationIcon>app.ico</ApplicationIcon> -->
+
+    <!-- Deterministic builds for reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
     <!-- Route *build* outputs to obj (keeps bin tidy) -->
     <BaseOutputPath>obj\</BaseOutputPath>
