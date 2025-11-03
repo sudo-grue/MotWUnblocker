@@ -1,7 +1,6 @@
-using MotWUnblocker.Utils;
-using System.IO;
+using MotW.Shared.Utils;
 
-namespace MotWUnblocker.Services
+namespace MotW.Shared.Services
 {
     public static class MotWService
     {

@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <ProjectReference Include="..\MotW.Shared\MotW.Shared.csproj" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
@@ -7,8 +11,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <Title>MotW Unblocker</Title>
-    <Product>MotW Unblocker</Product>
+    <Title>MotWasher</Title>
+    <Product>MotWasher</Product>
     <Company>sudo-grue</Company>
     <Authors>sudo-grue</Authors>
     <Description>Remove / toggle Mark-of-the-Web (Zone.Identifier) on selected files</Description>
@@ -35,10 +39,16 @@
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
+  <!-- Default: FDD (Framework-Dependent Deployment) -->
   <PropertyGroup Condition="'$(PublishFlavor)' == ''">
-    <PublishFlavor>SelfContained</PublishFlavor>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <AssemblyName>MotWasher</AssemblyName>
+    <PublishDir>bin\$(Configuration)\publish\</PublishDir>
   </PropertyGroup>
 
+  <!-- Optional: Self-Contained build (use -p:PublishFlavor=SelfContained) -->
   <PropertyGroup Condition="'$(PublishFlavor)' == 'SelfContained'">
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -46,26 +56,14 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
-    <AssemblyName>MotWUnblocker-sc</AssemblyName>
+    <AssemblyName>MotWasher-sc</AssemblyName>
     <PublishDir>bin\$(Configuration)\SelfContained\</PublishDir>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(PublishFlavor)' == 'FddSingle'">
-    <SelfContained>false</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <PublishReadyToRun>false</PublishReadyToRun>
-
-    <AssemblyName>MotWUnblocker-fdd</AssemblyName>
-    <PublishDir>bin\$(Configuration)\FddSingle\</PublishDir>
-  </PropertyGroup>
-
+  <!-- Optional target to build both FDD and SC -->
   <Target Name="PublishBoth" DependsOnTargets="Restore">
-    <MSBuild Projects="$(MSBuildProjectFullPath)"
-             Targets="Publish"
-             Properties="PublishFlavor=SelfContained;Configuration=$(Configuration)" />
-    <MSBuild Projects="$(MSBuildProjectFullPath)"
-             Targets="Publish"
-             Properties="PublishFlavor=FddSingle;Configuration=$(Configuration)" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="Configuration=$(Configuration)" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="PublishFlavor=SelfContained;Configuration=$(Configuration)" />
   </Target>
 
 </Project>

@@ -3,7 +3,7 @@
   Builds release binaries and generates SHA256 checksums.
 
 .DESCRIPTION
-  Builds Framework-Dependent version of MotWUnblocker,
+  Builds Framework-Dependent version of MotWasher (default) and MotWatcher,
   copies PowerShell scripts, generates release notes and checksums.
 
   Version 1.0.0
@@ -30,23 +30,23 @@ if (Test-Path $ReleaseDir) {
 
 New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
 
-Write-Host "`nBuilding FDD binary..." -ForegroundColor Cyan
-Set-Location (Join-Path $PSScriptRoot "MotWUnblocker")
+Write-Host "`nBuilding MotWasher..." -ForegroundColor Cyan
+Set-Location (Join-Path $PSScriptRoot "MotWasher")
 
-dotnet publish -c $Configuration -p:PublishFlavor=FddSingle -nologo
+dotnet publish -c $Configuration -nologo
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Build failed with exit code $LASTEXITCODE"
+    Write-Error "MotWasher build failed with exit code $LASTEXITCODE"
     exit $LASTEXITCODE
 }
 
-Write-Host "`nCopying release assets..." -ForegroundColor Cyan
-
-$FddExe = "MotWUnblocker\bin\$Configuration\FddSingle\MotWUnblocker-fdd.exe"
-
 Set-Location $PSScriptRoot
 
-Copy-Item $FddExe -Destination $ReleaseDir
+Write-Host "`nCopying release assets..." -ForegroundColor Cyan
+
+$MotWasherExe = "MotWasher\bin\$Configuration\publish\MotWasher.exe"
+
+Copy-Item $MotWasherExe -Destination $ReleaseDir
 Copy-Item "scripts\MotW.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\Install-MotWContext.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\Uninstall-MotWContext.ps1" -Destination $ReleaseDir
@@ -82,7 +82,7 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 ## Downloads
 
 **GUI Application**
-- **MotWUnblocker-fdd.exe** (177 KB) - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
+- **MotWasher.exe** (177 KB) - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 **PowerShell Scripts**
 - **MotW.ps1** - CLI tool for batch operations
@@ -94,11 +94,11 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 
 ## Features
 
-**MotW Unblocker (GUI)**
+**MotWasher (GUI)**
 - Batch file processing with drag-and-drop
 - Real-time MotW status checking
 - Keyboard shortcuts (Ctrl+A, Ctrl+U, Delete, F5, etc.)
-- Comprehensive logging to %LOCALAPPDATA%\MotWUnblocker\unblocker.log
+- Comprehensive logging to %LOCALAPPDATA%\MotW\motw.log
 - No admin rights required
 
 **MotW.ps1 (PowerShell)**
@@ -111,7 +111,7 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 
 ## Quick Start
 
-**GUI**: Download ``MotWUnblocker-fdd.exe`` and run
+**GUI**: Download ``MotWasher.exe`` and run
 
 **PowerShell**:
 ``````powershell
@@ -124,7 +124,7 @@ MotW.ps1 *.pdf
 **Verify Downloads:**
 ``````powershell
 # Windows PowerShell
-Get-FileHash MotWUnblocker-fdd.exe -Algorithm SHA256
+Get-FileHash MotWasher.exe -Algorithm SHA256
 # Compare with checksums.txt
 ``````
 

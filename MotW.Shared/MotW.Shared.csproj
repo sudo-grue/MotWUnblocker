@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <Version>1.0.1</Version>
+    <Authors>sudo-grue</Authors>
+    <Company>sudo-grue</Company>
+    <Product>MotW Tools Shared Library</Product>
+    <Copyright>Copyright © 2025 sudo-grue</Copyright>
+  </PropertyGroup>
+
+</Project>

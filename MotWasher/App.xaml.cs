@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace MotWUnblocker
+namespace MotWasher
 {
     public partial class App : Application { }
 }

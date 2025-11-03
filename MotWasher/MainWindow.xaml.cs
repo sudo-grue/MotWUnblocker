@@ -1,8 +1,7 @@
 using Microsoft.Win32;
-using MotWUnblocker.Models;
-using MotWUnblocker.Services;
-using MotWUnblocker.Utils;
-using System;
+using MotW.Shared.Services;
+using MotW.Shared.Utils;
+using MotWasher.Models;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -10,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
-namespace MotWUnblocker
+namespace MotWasher
 {
     public partial class MainWindow : Window
     {

@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace MotWUnblocker.Utils
+namespace MotW.Shared.Utils
 {
     public static class Logger
     {

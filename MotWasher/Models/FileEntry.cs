@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace MotWUnblocker.Models
+namespace MotWasher.Models
 {
     public class FileEntry : INotifyPropertyChanged
     {
