@@ -14,7 +14,9 @@ namespace MotW.Shared.Utils
 
         static Logger()
         {
-            try { Directory.CreateDirectory(BaseDir); } catch { /* ignore */ }
+            try
+            { Directory.CreateDirectory(BaseDir); }
+            catch { /* ignore */ }
         }
 
         public static void Info(string message) => Write("INFO", message);
@@ -57,12 +59,16 @@ namespace MotW.Shared.Utils
 
                 foreach (var old in archives)
                 {
-                    try { File.Delete(old); } catch { /* best effort */ }
+                    try
+                    { File.Delete(old); }
+                    catch { /* best effort */ }
                 }
             }
             catch
             {
-                try { File.WriteAllText(LogPath, string.Empty); } catch { /* best effort */ }
+                try
+                { File.WriteAllText(LogPath, string.Empty); }
+                catch { /* best effort */ }
             }
         }
 

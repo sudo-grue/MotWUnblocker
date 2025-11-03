@@ -10,12 +10,13 @@ While this change improves protection against credential leaks and malicious fil
 **MotW Tools** provides a safe, auditable way to manage this metadata for files originating from trusted sources.
 The suite includes:
 
-| Component          | Type                  | Description                                                                                  |
-| ------------------ | --------------------- | -------------------------------------------------------------------------------------------- |
-| **MotW Unblocker** | GUI Application (WPF) | Provides a graphical interface for batch inspection and removal of MotW metadata.            |
-| **MotW.ps1**       | PowerShell Script     | Lightweight command-line and “Send To” integration for quick unblocking without UI overhead. |
+| Component      | Type                  | Description                                                                                  |
+| -------------- | --------------------- | -------------------------------------------------------------------------------------------- |
+| **MotWasher**  | GUI Application (WPF) | Provides a graphical interface for batch inspection and removal of MotW metadata.            |
+| **MotWatcher** | System Tray Service   | Background file watcher that automatically removes MotW from monitored directories.          |
+| **MotW.ps1**   | PowerShell Script     | Lightweight command-line and "Send To" integration for quick unblocking without UI overhead. |
 
-Both tools operate per-user and require no administrative rights.
+All tools operate per-user and require no administrative rights.
 
 ---
 
@@ -24,10 +25,11 @@ Both tools operate per-user and require no administrative rights.
   - [Executive Summary](#executive-summary)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
-  - [GUI Application: MotW Unblocker](#gui-application-motw-unblocker)
+  - [GUI Application: MotWasher](#gui-application-motwasher)
     - [Installation](#installation)
     - [System Requirements](#system-requirements)
     - [Usage](#usage)
+  - [System Tray Service: MotWatcher](#system-tray-service-motwatcher)
   - [PowerShell CLI Tools](#powershell-cli-tools)
     - [Scripts Included](#scripts-included)
     - ["Send to..." Usage](#send-to-usage)
@@ -56,19 +58,19 @@ MotW Tools modifies only this metadata; the original file contents and hashes re
 
 ---
 
-## GUI Application: MotW Unblocker
+## GUI Application: MotWasher
 
 ### Installation
 
-After building or publishing the project, you’ll find the compiled executables in your local build output directories:
+After building or publishing the project, you'll find the compiled executables in your local build output directories:
 
-- [MotWUnblocker-sc.exe (Self-Contained; ≈60 MB)](MotWUnblocker/bin/Release/SelfContained/MotWUnblocker-sc.exe)
-- [MotWUnblocker-fdd.exe (Framework-Dependent; ≈177 KB)](MotWUnblocker/bin/Release/FddSingle/MotWUnblocker-fdd.exe)
+- [MotWasher.exe (Framework-Dependent; ≈196 KB)](MotWasher/bin/Release/publish/MotWasher.exe) - **Default**
+- [MotWasher-sc.exe (Self-Contained; ≈60 MB)](MotWasher/bin/Release/SelfContained/MotWasher-sc.exe) - Optional
 
-| Build Type              | Output Directory             | Description                                                                 |
-| ----------------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| Build Type              | Output Directory             | Description                                                                  |
+| ----------------------- | ---------------------------- | ---------------------------------------------------------------------------- |
+| **Framework-Dependent** | `bin\Release\publish\`       | Smaller binary that requires the installed `.NET 9 WindowsDesktop` runtime. |
 | **Self-Contained**      | `bin\Release\SelfContained\` | Includes the .NET runtime — runs on any Windows 10/11 x64 system.           |
-| **Framework-Dependent** | `bin\Release\FddSingle\`     | Smaller binary that requires the installed `.NET 9 WindowsDesktop` runtime. |
 
 ### System Requirements
 
@@ -105,8 +107,61 @@ After building or publishing the project, you’ll find the compiled executables
 - No elevated permissions required
 
 **Logs:**
-`%LOCALAPPDATA%\MotWUnblocker\unblocker.log`
+`%LOCALAPPDATA%\MotW\motw.log`
 Accessible via the **Open Log Folder** button.
+
+---
+
+## System Tray Service: MotWatcher
+
+MotWatcher is a background application that monitors directories and automatically removes Mark-of-the-Web from files as they are added.
+
+### Installation
+
+- [MotWatcher.exe (Framework-Dependent; ≈197 KB)](MotWatcher/bin/Release/publish/MotWatcher.exe) - **Default**
+- [MotWatcher-sc.exe (Self-Contained; ≈60 MB)](MotWatcher/bin/Release/SelfContained/MotWatcher-sc.exe) - Optional
+
+### Usage
+
+1. Run `MotWatcher.exe` - a system tray icon will appear
+2. Right-click the tray icon and select **Settings** to configure watched directories
+3. Click **Start Watching** from the tray menu
+4. Files added to monitored directories will have MotW automatically removed
+
+**Features:**
+- Background monitoring with FileSystemWatcher
+- **Settings UI** for easy configuration (no JSON editing required)
+- Configurable watched directories with add/remove/edit
+- File type filtering per directory (e.g., *.pdf, *.docx)
+- Zone ID threshold filtering (only processes Internet zone files by default)
+- Auto-start with Windows option
+- Start watching automatically on launch option
+- Debouncing to handle partial downloads
+- Balloon notifications when files are processed
+- Low resource usage
+
+**Configuration:**
+Right-click the tray icon and select **Settings** to configure:
+- **General Settings:**
+  - Auto-start with Windows
+  - Start watching automatically on launch
+  - Notification preferences
+  - Debounce delay (0.5-10 seconds)
+- **Watched Directories:**
+  - Add/remove directories to monitor
+  - Enable/disable individual directories
+  - Toggle recursive monitoring per directory
+  - Set zone ID threshold per directory
+- **File Type Filters:**
+  - Add specific file extensions (e.g., *.pdf, *.docx)
+  - Remove filters as needed
+  - Wildcard (*) to process all file types
+
+Advanced users can also manually edit `%LOCALAPPDATA%\MotW\watcher-config.json`
+
+**Logs:**
+`%LOCALAPPDATA%\MotW\motw.log`
+Accessible via tray icon → **Open Log Folder**
 
 ---
 
@@ -245,32 +300,56 @@ Tasks should run as the logged-in user (not SYSTEM) to ensure the same access co
 
 ### Building From Source
 
+**Build MotWasher (GUI):**
 ```powershell
-cd .\MotWUnblocker\
-```
+cd .\MotWasher\
 
-To build individual binary:
-```powershell
-dotnet restore
+# Default: Framework-Dependent build (MotWasher.exe)
+dotnet publish -c Release
+
+# Optional: Self-Contained build (MotWasher-sc.exe)
 dotnet publish -c Release -p:PublishFlavor=SelfContained
-dotnet publish -c Release -p:PublishFlavor=FddSingle
+
+# Build both
+dotnet msbuild -t:PublishBoth -p:Configuration=Release
 ```
 
-To build both:
+**Build MotWatcher (System Tray):**
 ```powershell
-dotnet msbuild -t:PublishBoth -p:Configuration=Release
+cd .\MotWatcher\
+
+# Default: Framework-Dependent build (MotWatcher.exe)
+dotnet publish -c Release
+
+# Optional: Self-Contained build (MotWatcher-sc.exe)
+dotnet publish -c Release -p:PublishFlavor=SelfContained
+```
+
+**Build All (Release Script):**
+```powershell
+# From repository root
+.\Build-Release.ps1 -Version "1.0.2"
+# Outputs to: .\release\
 ```
 
 ---
 
 ### Project Structure
 ```
-MotWUnblocker/
-├── Models/           # Data models and view models
+MotW.Shared/          # Shared library for common code
 ├── Services/         # MotW read/write logic
-├── Utils/            # Logging helpers
+└── Utils/            # Logging helpers
+
+MotWasher/            # GUI application
+├── Models/           # Data models and view models
 └── MainWindow.xaml   # WPF UI definition
-scripts/
+
+MotWatcher/           # System tray service
+├── Models/           # Configuration models
+├── Services/         # FileWatcher and config services
+└── App.xaml          # System tray application
+
+scripts/              # PowerShell tools
 ├── MotW.ps1
 ├── Install-MotWContext.ps1
 └── Uninstall-MotWContext.ps1
@@ -281,11 +360,14 @@ scripts/
 ### Technical Specifications
 - **Framework:** .NET 9.0
 - **UI:** WPF (Windows Presentation Foundation)
-- **Deployment:** Dual-flavor (Self-Contained + Framework-Dependent)
+- **Deployment:** Framework-Dependent (default), Self-Contained (optional)
 - **Target:** Windows x64
-- **Binary Sizes:** Self-Contained ≈ 60 MB · Framework-Dependent ≈ 177 KB
+- **Binary Sizes:**
+  - Framework-Dependent: ≈196 KB (MotWasher), ≈197 KB (MotWatcher)
+  - Self-Contained: ≈60 MB (includes .NET runtime)
 - **PowerShell Version:** 5.1 or higher
 - **Permissions:** Per-user only (no admin rights required)
+- **Shared Code:** MotW.Shared library used by both GUI applications
 
 ---
 

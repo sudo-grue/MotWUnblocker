@@ -12,14 +12,16 @@
 
         <DockPanel>
 
-                <ToolBar x:Name="Toolbar" DockPanel.Dock="Top">
+                <ToolBar x:Name="Toolbar"
+                         DockPanel.Dock="Top">
                         <Button Click="AddFiles_Click"
                                 Padding="12,4"
                                 Margin="0,0,6,0"
                                 ToolTip="Add files to the list (Ctrl+O)">
                                 <TextBlock>
                                         <Run Text="_Add Files…"/>
-                                        <Run Text=" " FontSize="10"/>
+                                        <Run Text=" "
+                                             FontSize="10"/>
                                 </TextBlock>
                         </Button>
                         <Button Click="RemoveSelected_Click"

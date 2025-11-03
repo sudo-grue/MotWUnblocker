@@ -1,0 +1,70 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MotW.Shared\MotW.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <Title>MotWatcher</Title>
+    <Product>MotWatcher</Product>
+    <Company>sudo-grue</Company>
+    <Authors>sudo-grue</Authors>
+    <Description>Background file watcher that automatically removes Mark-of-the-Web from monitored directories</Description>
+
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+
+    <Copyright>Copyright © 2025 sudo-grue</Copyright>
+    <RepositoryUrl>https://github.com/sudo-grue/MotWTools</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/sudo-grue/MotWTools</PackageProjectUrl>
+
+    <PublishTrimmed>false</PublishTrimmed>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- <ApplicationIcon>app.ico</ApplicationIcon> -->
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- Default: FDD (Framework-Dependent Deployment) -->
+  <PropertyGroup Condition="'$(PublishFlavor)' == ''">
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <AssemblyName>MotWatcher</AssemblyName>
+    <PublishDir>bin\$(Configuration)\publish\</PublishDir>
+  </PropertyGroup>
+
+  <!-- Optional: Self-Contained build (use -p:PublishFlavor=SelfContained) -->
+  <PropertyGroup Condition="'$(PublishFlavor)' == 'SelfContained'">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <AssemblyName>MotWatcher-sc</AssemblyName>
+    <PublishDir>bin\$(Configuration)\SelfContained\</PublishDir>
+  </PropertyGroup>
+
+  <!-- Optional target to build both FDD and SC -->
+  <Target Name="PublishBoth" DependsOnTargets="Restore">
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="Configuration=$(Configuration)" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="PublishFlavor=SelfContained;Configuration=$(Configuration)" />
+  </Target>
+
+</Project>

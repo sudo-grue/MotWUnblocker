@@ -22,6 +22,7 @@ release/
 # Visual Studio cache/options
 .vs/
 .vscode/
+.claude/
 *.suo
 *.user
 *.userosscache

@@ -42,11 +42,25 @@ if ($LASTEXITCODE -ne 0) {
 
 Set-Location $PSScriptRoot
 
+Write-Host "`nBuilding MotWatcher..." -ForegroundColor Cyan
+Set-Location (Join-Path $PSScriptRoot "MotWatcher")
+
+dotnet publish -c $Configuration -nologo
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "MotWatcher build failed with exit code $LASTEXITCODE"
+    exit $LASTEXITCODE
+}
+
+Set-Location $PSScriptRoot
+
 Write-Host "`nCopying release assets..." -ForegroundColor Cyan
 
 $MotWasherExe = "MotWasher\bin\$Configuration\publish\MotWasher.exe"
+$MotWatcherExe = "MotWatcher\bin\$Configuration\publish\MotWatcher.exe"
 
 Copy-Item $MotWasherExe -Destination $ReleaseDir
+Copy-Item $MotWatcherExe -Destination $ReleaseDir
 Copy-Item "scripts\MotW.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\Install-MotWContext.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\Uninstall-MotWContext.ps1" -Destination $ReleaseDir
@@ -81,8 +95,9 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 
 ## Downloads
 
-**GUI Application**
-- **MotWasher.exe** (177 KB) - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
+**GUI Applications**
+- **MotWasher.exe** (≈196 KB) - Batch file processor - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
+- **MotWatcher.exe** (≈197 KB) - System tray file watcher - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 **PowerShell Scripts**
 - **MotW.ps1** - CLI tool for batch operations
@@ -101,6 +116,17 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 - Comprehensive logging to %LOCALAPPDATA%\MotW\motw.log
 - No admin rights required
 
+**MotWatcher (System Tray)**
+- Background file monitoring and automatic MotW removal
+- Configurable watched directories via Settings UI
+- File type filtering per directory
+- Zone ID threshold filtering
+- Auto-start with Windows option
+- Start watching on launch option
+- Debouncing for partial downloads
+- Low resource usage
+- Comprehensive logging to %LOCALAPPDATA%\MotW\motw.log
+
 **MotW.ps1 (PowerShell)**
 - Three actions: ``unblock``, ``add``, ``status``
 - ``-WhatIf`` and ``-Confirm`` support for safe testing
@@ -111,7 +137,9 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 
 ## Quick Start
 
-**GUI**: Download ``MotWasher.exe`` and run
+**MotWasher (Batch Processing)**: Download ``MotWasher.exe`` and run
+
+**MotWatcher (Background Monitoring)**: Download ``MotWatcher.exe``, run, right-click tray icon → Settings to configure
 
 **PowerShell**:
 ``````powershell
