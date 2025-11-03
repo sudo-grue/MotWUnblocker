@@ -19,6 +19,31 @@ Both tools operate per-user and require no administrative rights.
 
 ---
 
+## Table of Contents
+- [MotW Tools](#motw-tools)
+  - [Executive Summary](#executive-summary)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [GUI Application: MotW Unblocker](#gui-application-motw-unblocker)
+    - [Installation](#installation)
+    - [System Requirements](#system-requirements)
+    - [Usage](#usage)
+  - [PowerShell CLI Tools](#powershell-cli-tools)
+    - [Scripts Included](#scripts-included)
+    - ["Send to..." Usage](#send-to-usage)
+    - [CLI Usage](#cli-usage)
+    - [Quick Installation](#quick-installation)
+    - [Manual Installation (Advanced)](#manual-installation-advanced)
+    - [Scheduled or Automated Usage](#scheduled-or-automated-usage)
+  - [Developer Information](#developer-information)
+    - [Building From Source](#building-from-source)
+    - [Project Structure](#project-structure)
+    - [Technical Specifications](#technical-specifications)
+  - [Security Considerations](#security-considerations)
+  - [Support and Contact](#support-and-contact)
+
+---
+
 ## Overview
 
 When Windows detects a file downloaded from the Internet, it appends a small hidden stream named `Zone.Identifier` that flags the file as **Zone 3 (Internet)**.
@@ -86,6 +111,41 @@ The `scripts/` directory contains automation-friendly tools that can be installe
 
 ---
 
+### "Send to..." Usage
+
+After install, right click one or more files. "Show more options >> Send to... >> MotW - Unblock"
+
+### CLI Usage
+
+```powershell
+MotW.ps1 *.pdf
+MotW.ps1 unblock *.docx
+MotW.ps1 add *.exe
+MotW.ps1 status .
+MotW.ps1 unblock . -Recurse
+```
+
+**Actions**
+| Action    | Description                                   |
+| --------- | --------------------------------------------- |
+| `unblock` | Removes MotW metadata (default).              |
+| `add`     | Adds MotW metadata (`ZoneId=3`).              |
+| `status`  | Displays `[MotW]` or `[clean]` for each file. |
+
+**Examples**
+```powershell
+# Unblock all PDFs in current folder
+MotW.ps1 *.pdf
+
+# Check status of all files recursively
+MotW.ps1 status . -Recurse
+
+# Add MotW metadata back to executables
+MotW.ps1 add *.exe
+```
+
+---
+
 ### Quick Installation
 
 ```powershell
@@ -119,37 +179,6 @@ If you prefer not to run the installer:
    @echo off
    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%USERPROFILE%\Tools\MotW\MotW.ps1" unblock "%~1"
    ```
-
----
-
-### CLI Usage
-
-```powershell
-MotW.ps1 *.pdf
-MotW.ps1 unblock *.docx
-MotW.ps1 add *.exe
-MotW.ps1 status .
-MotW.ps1 unblock . -Recurse
-```
-
-**Actions**
-| Action    | Description                                   |
-| --------- | --------------------------------------------- |
-| `unblock` | Removes MotW metadata (default).              |
-| `add`     | Adds MotW metadata (`ZoneId=3`).              |
-| `status`  | Displays `[MotW]` or `[clean]` for each file. |
-
-**Examples**
-```powershell
-# Unblock all PDFs in current folder
-MotW.ps1 *.pdf
-
-# Check status of all files recursively
-MotW.ps1 status . -Recurse
-
-# Add MotW metadata back to executables
-MotW.ps1 add *.exe
-```
 
 ---
 
