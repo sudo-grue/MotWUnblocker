@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Common -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
@@ -26,25 +25,20 @@
 
     <PublishTrimmed>false</PublishTrimmed>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <!-- TODO: Add application icon file (app.ico) -->
     <!-- <ApplicationIcon>app.ico</ApplicationIcon> -->
 
-    <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
 
-    <!-- Route *build* outputs to obj (keeps bin tidy) -->
     <BaseOutputPath>obj\</BaseOutputPath>
     <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
-  <!-- Default flavor if none provided -->
   <PropertyGroup Condition="'$(PublishFlavor)' == ''">
     <PublishFlavor>SelfContained</PublishFlavor>
   </PropertyGroup>
 
-  <!-- Self-contained (full) -->
   <PropertyGroup Condition="'$(PublishFlavor)' == 'SelfContained'">
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -56,7 +50,6 @@
     <PublishDir>bin\$(Configuration)\SelfContained\</PublishDir>
   </PropertyGroup>
 
-  <!-- Framework-dependent (small) -->
   <PropertyGroup Condition="'$(PublishFlavor)' == 'FddSingle'">
     <SelfContained>false</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -66,7 +59,6 @@
     <PublishDir>bin\$(Configuration)\FddSingle\</PublishDir>
   </PropertyGroup>
 
-  <!-- Convenience: publish both -->
   <Target Name="PublishBoth" DependsOnTargets="Restore">
     <MSBuild Projects="$(MSBuildProjectFullPath)"
              Targets="Publish"
