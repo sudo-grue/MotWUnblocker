@@ -24,45 +24,43 @@ namespace MotWUnblocker
             DataContext = _files;
             Logger.Info("Application started.");
 
-            // Add keyboard shortcuts
-            KeyDown += MainWindow_KeyDown;
+            PreviewKeyDown += MainWindow_PreviewKeyDown;
         }
 
-        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (_isProcessing) return;
 
-            // Ctrl+O - Add Files
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 AddFiles_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
-            // Delete - Remove Selected
             else if (e.Key == Key.Delete)
             {
                 RemoveSelected_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
-            // Ctrl+L - Clear All
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                SelectAll_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
             else if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 ClearAll_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
-            // F5 - Refresh
             else if (e.Key == Key.F5)
             {
                 Refresh_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
-            // Ctrl+U - Unblock
             else if (e.Key == Key.U && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 UnblockSelected_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
-            // Ctrl+B - Block
             else if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 BlockSelected_Click(this, new RoutedEventArgs());
@@ -91,6 +89,27 @@ namespace MotWUnblocker
             foreach (var f in toRemove)
                 _files.Remove(f);
             SetStatus($"Removed {toRemove.Count} file(s).");
+        }
+
+        private void SelectAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (_files.Count == 0)
+            {
+                SetStatus("No files to select.");
+                return;
+            }
+
+            bool allSelected = _files.All(f => f.Selected);
+
+            foreach (var file in _files)
+            {
+                file.Selected = !allSelected;
+            }
+
+            if (allSelected)
+                SetStatus($"Deselected all {_files.Count} file(s).");
+            else
+                SetStatus($"Selected all {_files.Count} file(s).");
         }
 
         private void ClearAll_Click(object sender, RoutedEventArgs e)
@@ -223,7 +242,6 @@ namespace MotWUnblocker
             _isProcessing = isProcessing;
             Mouse.OverrideCursor = isProcessing ? Cursors.Wait : null;
 
-            // Disable all buttons during processing
             foreach (var button in Toolbar.Items.OfType<System.Windows.Controls.Button>())
             {
                 button.IsEnabled = !isProcessing;
