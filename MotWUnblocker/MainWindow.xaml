@@ -26,6 +26,10 @@
                                 Padding="12,4"
                                 Margin="0,0,6,0"
                                 ToolTip="Remove selected files from the list (Delete)">_Remove Selected</Button>
+                        <Button Click="SelectAll_Click"
+                                Padding="12,4"
+                                Margin="0,0,6,0"
+                                ToolTip="Select/deselect all files (Ctrl+A)">Select _All</Button>
                         <Button Click="ClearAll_Click"
                                 Padding="12,4"
                                 Margin="0,0,6,0"
@@ -67,7 +71,6 @@
 
                         <DataGrid.Columns>
 
-                                <!-- OPTION C: Template column with real CheckBox control -->
                                 <DataGridTemplateColumn Header="✔"
                                                         Width="40"
                                                         IsReadOnly="True">
@@ -81,7 +84,6 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- All other columns are read-only text -->
                                 <DataGridTextColumn Binding="{Binding Name}"
                                                     Header="File"
                                                     Width="*"
