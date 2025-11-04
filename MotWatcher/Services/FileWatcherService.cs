@@ -219,38 +219,77 @@ namespace MotWatcher.Services
                         return;
                     }
 
+                    // Get file size and zone ID before processing
+                    long fileSize = 0;
+                    try
+                    {
+                        var fileInfo = new FileInfo(filePath);
+                        fileSize = fileInfo.Length;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error($"Could not get file size for {filePath}: {ex.Message}");
+                    }
+
+                    var zoneId = GetZoneId(filePath) ?? 3; // Default to Internet zone if unknown
+
                     // Check Zone ID threshold if configured
                     if (matchingDir.MinZoneId.HasValue)
                     {
-                        var zoneId = GetZoneId(filePath);
-                        if (!zoneId.HasValue || zoneId.Value < matchingDir.MinZoneId.Value)
+                        if (zoneId < matchingDir.MinZoneId.Value)
                         {
                             Logger.Info($"Zone ID {zoneId} below threshold {matchingDir.MinZoneId}, skipping: {Path.GetFileName(filePath)}");
                             return;
                         }
                     }
 
-                    // Remove MotW
-                    var success = MotWService.Unblock(filePath, out var error);
+                    // Check exclude patterns
+                    if (IsExcluded(filePath, matchingDir))
+                    {
+                        Logger.Info($"File matches exclude pattern, skipping: {Path.GetFileName(filePath)}");
+                        return;
+                    }
+
+                    // Reassign zone or remove MotW
+                    bool success;
+                    string? error;
+                    string action;
+
+                    if (matchingDir.TargetZoneId.HasValue)
+                    {
+                        // Reassign to target zone (recommended)
+                        success = MotWService.Reassign(filePath, matchingDir.TargetZoneId.Value, out error);
+                        action = success ? $"Reassigned zone from {zoneId} to {matchingDir.TargetZoneId.Value}" : "Failed to reassign zone";
+                    }
+                    else
+                    {
+                        // Remove MotW entirely (legacy behavior, not recommended)
+                        success = MotWService.Unblock(filePath, out error);
+                        action = success ? $"Removed MotW (zone {zoneId})" : "Failed to remove MotW";
+                    }
 
                     if (success)
                     {
-                        Logger.Info($"Successfully unblocked: {filePath}");
+                        Logger.Info($"{action}: {filePath}");
                         FileProcessed?.Invoke(this, new FileProcessedEventArgs
                         {
                             FilePath = filePath,
                             Success = true,
-                            Message = "MotW removed successfully"
+                            Message = action,
+                            FileSize = fileSize,
+                            ZoneId = zoneId
                         });
                     }
                     else
                     {
-                        Logger.Error($"Failed to unblock {filePath}: {error}");
+                        Logger.Error($"{action}: {filePath} - {error}");
                         FileProcessed?.Invoke(this, new FileProcessedEventArgs
                         {
                             FilePath = filePath,
                             Success = false,
-                            Message = error ?? "Unknown error"
+                            Message = error ?? "Unknown error",
+                            FileSize = fileSize,
+                            ZoneId = zoneId
                         });
                     }
                 }
@@ -290,6 +329,169 @@ namespace MotWatcher.Services
             return null;
         }
 
+        private bool IsExcluded(string filePath, WatchedDirectory directory)
+        {
+            if (directory.ExcludePatterns == null || directory.ExcludePatterns.Count == 0)
+                return false;
+
+            var fileName = Path.GetFileName(filePath);
+            foreach (var pattern in directory.ExcludePatterns)
+            {
+                if (string.IsNullOrWhiteSpace(pattern))
+                    continue;
+
+                // Simple glob pattern matching
+                if (MatchesPattern(fileName, pattern))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool MatchesPattern(string fileName, string pattern)
+        {
+            // Convert glob pattern to regex
+            // * matches any characters, ? matches single character
+            var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
+                .Replace("\\*", ".*")
+                .Replace("\\?", ".") + "$";
+
+            return System.Text.RegularExpressions.Regex.IsMatch(
+                fileName,
+                regexPattern,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+
+        public void RunRulesOnExistingFiles()
+        {
+            Logger.Info("Starting manual rule execution on existing files");
+            int processedCount = 0;
+            int successCount = 0;
+
+            foreach (var dir in _config.WatchedDirectories.Where(d => d.Enabled))
+            {
+                if (!Directory.Exists(dir.Path))
+                {
+                    Logger.Warn($"Skipping non-existent directory: {dir.Path}");
+                    continue;
+                }
+
+                try
+                {
+                    Logger.Info($"Scanning directory: {dir.Path}");
+                    var files = Directory.GetFiles(dir.Path, "*.*", SearchOption.AllDirectories);
+
+                    foreach (var filePath in files)
+                    {
+                        try
+                        {
+                            // Use the same processing logic as file watcher
+                            var matchingDir = _config.WatchedDirectories
+                                .Where(d => d.Enabled)
+                                .FirstOrDefault(d => filePath.StartsWith(d.Path, StringComparison.OrdinalIgnoreCase));
+
+                            if (matchingDir == null)
+                                continue;
+
+                            processedCount++;
+                            ProcessFileInternal(filePath, matchingDir);
+                            successCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error($"Error processing {filePath}: {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error scanning directory {dir.Path}: {ex.Message}");
+                }
+            }
+
+            Logger.Info($"Manual rule execution completed: {successCount}/{processedCount} files processed successfully");
+        }
+
+        private void ProcessFileInternal(string filePath, WatchedDirectory matchingDir)
+        {
+            if (!MotWService.HasMotW(filePath))
+            {
+                Logger.Debug($"No MotW detected, skipping: {Path.GetFileName(filePath)}");
+                return;
+            }
+
+            long fileSize = 0;
+            try
+            {
+                var fileInfo = new FileInfo(filePath);
+                fileSize = fileInfo.Length;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Could not get file size for {filePath}: {ex.Message}");
+            }
+
+            var zoneId = GetZoneId(filePath) ?? 3; // Default to Internet zone if unknown
+
+            // Check Zone ID threshold if configured
+            if (matchingDir.MinZoneId.HasValue)
+            {
+                if (zoneId < matchingDir.MinZoneId.Value)
+                {
+                    Logger.Debug($"Zone ID {zoneId} below threshold {matchingDir.MinZoneId}, skipping: {Path.GetFileName(filePath)}");
+                    return;
+                }
+            }
+
+            // Check exclude patterns
+            if (IsExcluded(filePath, matchingDir))
+            {
+                Logger.Debug($"File matches exclude pattern, skipping: {Path.GetFileName(filePath)}");
+                return;
+            }
+
+            // Reassign zone or remove MotW
+            bool success;
+            string? error;
+            string action;
+
+            if (matchingDir.TargetZoneId.HasValue)
+            {
+                success = MotWService.Reassign(filePath, matchingDir.TargetZoneId.Value, out error);
+                action = success ? $"Reassigned zone from {zoneId} to {matchingDir.TargetZoneId.Value}" : "Failed to reassign zone";
+            }
+            else
+            {
+                success = MotWService.Unblock(filePath, out error);
+                action = success ? $"Removed MotW (zone {zoneId})" : "Failed to remove MotW";
+            }
+
+            if (success)
+            {
+                Logger.Info($"{action}: {filePath}");
+                FileProcessed?.Invoke(this, new FileProcessedEventArgs
+                {
+                    FilePath = filePath,
+                    Success = true,
+                    Message = action,
+                    FileSize = fileSize,
+                    ZoneId = zoneId
+                });
+            }
+            else
+            {
+                Logger.Error($"{action}: {filePath} - {error}");
+                FileProcessed?.Invoke(this, new FileProcessedEventArgs
+                {
+                    FilePath = filePath,
+                    Success = false,
+                    Message = error ?? "Unknown error",
+                    FileSize = fileSize,
+                    ZoneId = zoneId
+                });
+            }
+        }
+
         public void Dispose()
         {
             Stop();
@@ -302,5 +504,7 @@ namespace MotWatcher.Services
         public string FilePath { get; set; } = string.Empty;
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public int ZoneId { get; set; }
     }
 }
