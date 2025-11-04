@@ -152,3 +152,6 @@ $RECYCLE.BIN/
 *~
 *.orig
 *.rej
+
+# PowerShell temporary files
+*.ps1.backup
