@@ -158,9 +158,9 @@ namespace MotWatcher
                     return;
 
                 // Normalize format
-                if (!filter.StartsWith("*") && !filter.StartsWith("."))
+                if (!filter.StartsWith('*') && !filter.StartsWith('.'))
                     filter = "*." + filter;
-                else if (filter.StartsWith("."))
+                else if (filter.StartsWith('.'))
                     filter = "*" + filter;
 
                 if (_selectedDirectory.FileTypeFilters.Contains(filter, StringComparer.OrdinalIgnoreCase))
@@ -340,6 +340,7 @@ namespace MotWatcher
 
         public EditDirectoryDialog(WatchedDirectory directory)
         {
+            ArgumentNullException.ThrowIfNull(directory);
             _directory = directory;
 
             Title = "Edit Directory Settings";
@@ -370,10 +371,10 @@ namespace MotWatcher
             minZonePanel.Children.Add(new System.Windows.Controls.Label { Content = "Minimum Zone ID to process:" });
 
             _minZoneComboBox = new System.Windows.Controls.ComboBox { SelectedIndex = 0 };
-            _minZoneComboBox.Items.Add(new ComboBoxItem { Content = "Any Zone", Tag = (int?)null });
+            _minZoneComboBox.Items.Add(new ComboBoxItem { Content = "Any Zone (0-3)", Tag = (int?)null });
             _minZoneComboBox.Items.Add(new ComboBoxItem { Content = "1+ (Intranet or higher)", Tag = 1 });
             _minZoneComboBox.Items.Add(new ComboBoxItem { Content = "2+ (Trusted or higher)", Tag = 2 });
-            _minZoneComboBox.Items.Add(new ComboBoxItem { Content = "3+ (Internet only)", Tag = 3 });
+            _minZoneComboBox.Items.Add(new ComboBoxItem { Content = "3 (Internet zone only)", Tag = 3 });
 
             foreach (ComboBoxItem item in _minZoneComboBox.Items)
             {
@@ -419,7 +420,8 @@ namespace MotWatcher
                 if (selectedMin.HasValue)
                 {
                     suggestedTarget = selectedMin.Value - 1;
-                    if (suggestedTarget < 0) suggestedTarget = 0;
+                    if (suggestedTarget < 0)
+                        suggestedTarget = 0;
                 }
                 else
                 {

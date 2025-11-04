@@ -5,6 +5,7 @@ namespace MotW.Shared.Services
     public static class MotWService
     {
         private const string ZoneIdentifierStream = ":Zone.Identifier";
+        private static readonly char[] LineSeparators = ['\r', '\n'];
         private static string ZoneStream(string path) => path + ZoneIdentifierStream;
 
         public static bool HasMotW(string path)
@@ -147,7 +148,7 @@ namespace MotW.Shared.Services
 
         /// <summary>
         /// Reassigns a file's zone from one zone to another.
-        /// This is useful for correcting improperly assigned zones due to poor IT administration.
+        /// This is useful for correcting zone assignments while Group Policy configurations are being implemented.
         /// </summary>
         /// <param name="path">Path to the file</param>
         /// <param name="targetZoneId">Target zone ID (0=Local Machine, 1=Local Intranet, 2=Trusted Sites, 3=Internet, 4=Restricted Sites)</param>
@@ -156,6 +157,54 @@ namespace MotW.Shared.Services
         public static bool Reassign(string path, int targetZoneId, out string? error)
         {
             return Block(path, out error, targetZoneId);
+        }
+
+        /// <summary>
+        /// Progressively reassigns a file down one zone level (3→2→1→0→remove).
+        /// This creates intentional friction, reminding users that the proper solution is configuring zone policies.
+        /// Zone 4 (Restricted Sites) files are never modified as they are explicitly restricted by policy.
+        /// </summary>
+        /// <param name="path">Path to the file</param>
+        /// <param name="error">Error message if operation fails</param>
+        /// <returns>True if successful, false otherwise</returns>
+        public static bool ReassignProgressive(string path, out string? error)
+        {
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                error = "File path cannot be empty.";
+                return false;
+            }
+
+            var currentZone = GetZoneId(path);
+
+            if (currentZone == null)
+            {
+                error = "File has no MotW metadata";
+                Logger.Info($"Progressive reassign skipped - file already clean: {path}");
+                return true;
+            }
+
+            // Security check: Never process Zone 4 (Restricted Sites)
+            // Zone 4 means IT has explicitly restricted this file
+            if (currentZone == 4)
+            {
+                error = "Zone 4 (Restricted Sites) files cannot be reassigned - explicitly restricted by IT policy";
+                Logger.Warning($"Progressive reassign blocked - Zone 4 (Restricted Sites) detected: {path}");
+                return false;
+            }
+
+            int targetZone = currentZone.Value - 1;
+
+            if (targetZone < 0)
+            {
+                Logger.Info($"Progressive reassign removing MotW (was Zone {currentZone}): {path}");
+                return Unblock(path, out error);
+            }
+
+            Logger.Info($"Progressive reassign Zone {currentZone} → {targetZone}: {path}");
+            return Reassign(path, targetZone, out error);
         }
 
         /// <summary>
@@ -175,10 +224,10 @@ namespace MotW.Shared.Services
                     return null;
 
                 var content = File.ReadAllText(zoneStream);
-                var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var lines = content.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
                 var zoneLine = lines.FirstOrDefault(l => l.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase));
 
-                if (zoneLine != null && int.TryParse(zoneLine.Substring(7), out var zoneId))
+                if (zoneLine != null && int.TryParse(zoneLine.AsSpan(7), out var zoneId))
                     return zoneId;
             }
             catch (Exception ex)

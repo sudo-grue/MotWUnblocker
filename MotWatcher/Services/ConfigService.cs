@@ -63,6 +63,8 @@ namespace MotWatcher.Services
 
         public static void Save(WatcherConfig config)
         {
+            ArgumentNullException.ThrowIfNull(config);
+
             try
             {
                 var json = JsonSerializer.Serialize(config, JsonOptions);

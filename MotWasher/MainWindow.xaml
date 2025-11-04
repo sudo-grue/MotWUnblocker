@@ -20,10 +20,10 @@
                         Padding="12,8">
                         <StackPanel>
                                 <TextBlock FontWeight="Bold" Foreground="#CC6600">
-                                        ⚠️ REMINDER: This tool is a workaround for improperly configured zone policies
+                                        ⚠️ REMINDER: This tool is a workaround while zone policies are being configured
                                 </TextBlock>
                                 <TextBlock Margin="0,4,0,0" Foreground="#995500">
-                                        Ask your IT department to properly configure trusted sources via Group Policy.
+                                        Work with your organization to configure trusted sources via Group Policy.
                                         Files are "washed" ONE ZONE LEVEL per operation (Zone 3 → Zone 2 → Zone 1 → Zone 0).
                                 </TextBlock>
                         </StackPanel>

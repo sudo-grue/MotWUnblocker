@@ -2,18 +2,20 @@
 
 A suite of Windows utilities for viewing, managing, and **reassigning** security zones for **Mark-of-the-Web (MotW)** metadata on files.
 
+[Download Latest Release](https://github.com/sudo-grue/MotWTools/releases/latest)
+
 ## Executive Summary
 
 Microsoft's recent security updates (notably Windows 11 25H2 / KB5070960) expanded enforcement of the Mark-of-the-Web feature, preventing the preview of downloaded files and adding additional safety prompts.
-While this change improves protection against credential leaks and malicious file execution, it also creates real productivity friction for **professionals working in environments with improperly configured zone policies**.
+While this change improves protection against credential leaks and malicious file execution, it also creates real productivity friction for **professionals working in environments where zone policies have not yet been fully configured**.
 
 ### Target Audience
 
 **MotW Tools** is designed for professionals who:
-- Receive files from trusted sources that are incorrectly marked as Internet zone (Zone 3)
-- Work in environments where IT departments haven't properly configured Group Policy trust zones
+- Receive files from trusted sources that are marked as Internet zone (Zone 3)
+- Work in environments where Group Policy trust zones are still being configured
 - Need to correct zone assignments on legitimate business files to restore productivity
-- Understand that the **proper solution is fixing IT policies**, but need a workaround until that happens
+- Understand that the **proper solution is configuring zone policies**, but need a temporary solution
 
 ### Important: This is a Workaround, Not a Solution
 
@@ -26,39 +28,40 @@ The **correct fix** is for your IT department to:
 
 ### Tool Suite
 
-| Component      | Type                  | Description                                                                                              |
-| -------------- | --------------------- | -------------------------------------------------------------------------------------------------------- |
-| **MotWasher**  | GUI Application (WPF) | Progressive zone reassignment (Zone 3→2→1→0) with visual feedback and educational reminders.             |
-| **MotWatcher** | System Tray Service   | Background file watcher that automatically reassigns files from monitored directories to safer zones.    |
-| **MotW.ps1**   | PowerShell Script     | Command-line tool for zone reassignment, status checking, and "Send To" integration. Supports progressive and direct zone reassignment. |
+| Component | Type | Description |
+| --- | --- | --- |
+| **MotWasher** | GUI Application (WPF) | Progressive zone reassignment (Zone 3→2→1→0) with visual feedback and educational reminders. |
+| **MotWatcher** | System Tray Service | Background file watcher that automatically reassigns files from monitored directories to safer zones. |
+| **MotW.ps1** | PowerShell Script | Command-line tool for zone reassignment, status checking, and "Send To" integration. Supports progressive and direct zone reassignment. |
 
 All tools operate per-user and require no administrative rights.
 
 ---
 
 ## Table of Contents
-- [MotW Tools](#motw-tools)
-  - [Executive Summary](#executive-summary)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [GUI Application: MotWasher](#gui-application-motwasher)
-    - [Installation](#installation)
-    - [System Requirements](#system-requirements)
-    - [Usage](#usage)
-  - [System Tray Service: MotWatcher](#system-tray-service-motwatcher)
-  - [PowerShell CLI Tools](#powershell-cli-tools)
-    - [Scripts Included](#scripts-included)
-    - ["Send to..." Usage](#send-to-usage)
-    - [CLI Usage](#cli-usage)
-    - [Quick Installation](#quick-installation)
-    - [Manual Installation (Advanced)](#manual-installation-advanced)
-    - [Scheduled or Automated Usage](#scheduled-or-automated-usage)
-  - [Developer Information](#developer-information)
-    - [Building From Source](#building-from-source)
-    - [Project Structure](#project-structure)
-    - [Technical Specifications](#technical-specifications)
-  - [Security Considerations](#security-considerations)
-  - [Support and Contact](#support-and-contact)
+- [Overview](#overview)
+  - [Windows Security Zones](#windows-security-zones)
+- [GUI Application: MotWasher](#gui-application-motwasher)
+  - [Installation](#installation)
+  - [System Requirements](#system-requirements)
+  - [Usage](#usage)
+- [System Tray Service: MotWatcher](#system-tray-service-motwatcher)
+  - [Installation](#installation-1)
+  - [System Requirements](#system-requirements-1)
+  - [Usage](#usage-1)
+- [PowerShell CLI Tools](#powershell-cli-tools)
+  - [Scripts Included](#scripts-included)
+  - ["Send to..." Usage](#send-to-usage)
+  - [CLI Usage](#cli-usage)
+  - [Quick Installation](#quick-installation)
+  - [Manual Installation (Advanced)](#manual-installation-advanced)
+  - [Scheduled or Automated Usage](#scheduled-or-automated-usage)
+- [For Developers](#for-developers)
+- [Security Considerations](#security-considerations)
+  - [Intended Use](#intended-use)
+  - [Not Intended For](#not-intended-for)
+  - [The Proper Solution](#the-proper-solution)
+- [Support and Contact](#support-and-contact)
 
 ---
 
@@ -67,22 +70,24 @@ All tools operate per-user and require no administrative rights.
 When Windows detects a file downloaded from the Internet, it appends a small hidden stream named `Zone.Identifier` that assigns the file to a security zone:
 
 ### Windows Security Zones
-| Zone ID | Name               | Typical Use                                                   | Impact                                    |
-| ------- | ------------------ | ------------------------------------------------------------- | ----------------------------------------- |
-| **0**   | Local Machine      | Files on your local computer                                  | Full trust, no restrictions               |
-| **1**   | Local Intranet     | Files from your corporate network                             | Minimal restrictions                      |
-| **2**   | Trusted Sites      | Explicitly trusted domains (configured by IT or user)         | Reduced restrictions                      |
-| **3**   | Internet           | Files downloaded from the Internet (default for downloads)    | Heavy restrictions, preview blocked       |
-| **4**   | Restricted Sites   | Known malicious or explicitly blocked sites                   | Maximum restrictions                      |
+| Zone ID | Name | Typical Use | Impact |
+| --- | --- | --- | --- |
+| **0** | Local Machine | Files on your local computer | Full trust, no restrictions |
+| **1** | Local Intranet | Files from your corporate network | Minimal restrictions |
+| **2** | Trusted Sites | Explicitly trusted domains (configured by IT or user) | Reduced restrictions |
+| **3** | Internet **(default)** | Files downloaded from the Internet  | Heavy restrictions, preview blocked |
+| **4** | Restricted Sites | **Explicitly blocked by IT policy** | **Maximum restrictions - NEVER modified by MotW Tools** |
 
 Files marked as **Zone 3 (Internet)**:
 - Have file previews disabled in Explorer and Outlook
 - Trigger additional warning prompts when opened
 - Have scripts and macros blocked by default
 
-**MotW Tools helps you reassign files from Zone 3 (Internet) to more appropriate zones** (like Zone 2 - Trusted Sites) when you know the source is legitimate but your IT policies haven't been configured correctly.
+**MotW Tools helps you reassign files from Zone 3 (Internet) to Zone 2 (Trusted Sites)** when you know the source is legitimate but zone policies have not yet been configured for that source.
 
-All tools modify only this metadata; the original file contents and hashes remain unchanged.
+**Important Security Policy:** MotW Tools will **never** modify files marked as Zone 4 (Restricted Sites). Zone 4 is explicitly set by IT policy to mark files as dangerous or blocked - these files should never be trusted and are automatically skipped by all MotW Tools.
+
+All tools modify only the Zone.Identifier metadata; the original file contents and hashes remain unchanged.
 
 ---
 
@@ -92,25 +97,25 @@ All tools modify only this metadata; the original file contents and hashes remai
 
 After building or publishing the project, you'll find the compiled executables in your local build output directories:
 
-- [MotWasher.exe (Framework-Dependent; ≈196 KB)](MotWasher/bin/Release/publish/MotWasher.exe) - **Default**
+- [MotWasher.exe (Framework-Dependent; ≈203 KB)](MotWasher/bin/Release/publish/MotWasher.exe) - **Default**
 - [MotWasher-sc.exe (Self-Contained; ≈60 MB)](MotWasher/bin/Release/SelfContained/MotWasher-sc.exe) - Optional
 
-| Build Type              | Output Directory             | Description                                                                  |
-| ----------------------- | ---------------------------- | ---------------------------------------------------------------------------- |
-| **Framework-Dependent** | `bin\Release\publish\`       | Smaller binary that requires the installed `.NET 9 WindowsDesktop` runtime. |
-| **Self-Contained**      | `bin\Release\SelfContained\` | Includes the .NET runtime — runs on any Windows 10/11 x64 system.           |
+| Build Type | Output Directory | Description |
+| --- | --- | --- |
+| **Framework-Dependent** | `bin\Release\publish\` | Smaller binary that requires the installed `.NET 9 WindowsDesktop` runtime. |
+| **Self-Contained** | `bin\Release\SelfContained\` | Includes the .NET runtime — runs on any Windows 10/11 x64 system. |
 
 ### System Requirements
 
-| Requirement | Self-Contained                       | Framework-Dependent                  |
-| ----------- | ------------------------------------ | ------------------------------------ |
-| OS          | Windows 10 (21H2+) or Windows 11 x64 | Windows 10 (21H2+) or Windows 11 x64 |
-| Runtime     | Bundled                              | `Microsoft.WindowsDesktop.App 9.x`   |
+| Requirement | Self-Contained | Framework-Dependent |
+| --- | --- | --- |
+| OS | Windows 10 (21H2+) or Windows 11 x64 | Windows 10 (21H2+) or Windows 11 x64 |
+| Runtime | Bundled | `Microsoft.WindowsDesktop.App 9.x` |
 
 ### Usage
 
 **Progressive Washing Philosophy:**
-MotWasher uses a **one-zone-per-operation** approach to create intentional friction, reminding you that fixing IT policies is the proper solution.
+MotWasher uses a **one-zone-per-wash** approach to create mild friction, reminding users that fixing environment configurations is the proper solution.
 
 1. **Drop Files** – Drag and drop files into the window
 2. **Review Zones** – See color-coded current and next zones:
@@ -121,24 +126,24 @@ MotWasher uses a **one-zone-per-operation** approach to create intentional frict
 3. **Wash Files** – Click "Wash Files" to move all files down one zone level
 4. **Repeat** – Drop files again for additional washing if needed
 
-Each operation moves files ONE zone level (3→2→1→0→remove). This deliberate friction reminds you to ask IT to fix the root cause.
+Each operation moves files ONE zone level (3→2→1→0→remove). This deliberate friction reminds users to continue to work on fixing the root cause.
 
 **Keyboard Shortcuts**
 | Shortcut | Action |
 | -------- | ------ |
-| `Ctrl+O` | Add files to the list |
-| `Ctrl+L` | Clear all files from the list |
-| `F5` | Refresh MotW status for all files |
-| `Ctrl+W` | Wash files (progressive reassignment) |
+| `Ctrl+O` | `O`pen and add files to the list |
+| `Ctrl+L` | C`l`ear all files from the list |
+| `F5`     | Refresh MotW status for all files |
+| `Ctrl+W` | `W`ash files (progressive reassignment) |
 
 **Features**
 - Progressive zone reassignment (one level per operation)
 - Color-coded visual feedback for each zone
 - Educational banner explaining this is a workaround
 - Drag-and-drop support
-- Automatic list clearing after washing (encourages re-drop for next level)
+- Automatic list clearing after washing (re-drop for additional levels)
 - Keyboard shortcuts for efficient workflow
-- Detailed local logging
+- Comprehensive logging with RFC 5424 standard levels
 - No elevated permissions required
 
 **Logs:**
@@ -153,8 +158,15 @@ MotWatcher is a background application that monitors directories and automatical
 
 ### Installation
 
-- [MotWatcher.exe (Framework-Dependent; ≈197 KB)](MotWatcher/bin/Release/publish/MotWatcher.exe) - **Default**
+- [MotWatcher.exe (Framework-Dependent; ≈240 KB)](MotWatcher/bin/Release/publish/MotWatcher.exe) - **Default**
 - [MotWatcher-sc.exe (Self-Contained; ≈60 MB)](MotWatcher/bin/Release/SelfContained/MotWatcher-sc.exe) - Optional
+
+### System Requirements
+
+| Requirement | Self-Contained | Framework-Dependent |
+| --- | --- | --- |
+| OS | Windows 10 (21H2+) or Windows 11 x64 | Windows 10 (21H2+) or Windows 11 x64 |
+| Runtime | Bundled | `Microsoft.WindowsDesktop.App 9.x` |
 
 ### Usage
 
@@ -168,9 +180,10 @@ MotWatcher is a background application that monitors directories and automatical
 - Set **Minimum Zone: 3 (Internet)** and **Target Zone: 2 (Trusted Sites)**
 - Files from the Internet (Zone 3) will be reassigned to Trusted Sites (Zone 2)
 - Files already in Zone 2 or lower won't be touched
+- **Zone 4 (Restricted Sites) files are always skipped** regardless of settings
 
 **Smart Defaults:**
-- Minimum Zone 3+ → Target Zone 2 (Internet → Trusted)
+- Minimum Zone 3 → Target Zone 2 (Internet → Trusted)
 - Minimum Zone 2+ → Target Zone 1 (Trusted → Intranet)
 - Minimum Zone 1+ → Target Zone 0 (Intranet → Local)
 
@@ -188,6 +201,7 @@ MotWatcher is a background application that monitors directories and automatical
 - Start watching automatically on launch option
 - Debouncing to handle partial downloads
 - Balloon notifications when files are processed
+- Comprehensive logging with RFC 5424 standard levels
 - Low resource usage
 
 **Configuration:**
@@ -222,11 +236,12 @@ Accessible via tray icon → **Open Log Folder**
 The `scripts/` directory contains automation-friendly tools that can be installed per-user without admin rights.
 
 ### Scripts Included
-| Script                        | Purpose                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------- |
-| **MotW.ps1**                  | Core logic for zone reassignment, adding, removing, and status checking of MotW. |
-| **Install-MotWContext.ps1**   | Installs the CLI tool and "Send To → MotW – Reassign" shortcut.                |
-| **Uninstall-MotWContext.ps1** | Cleanly removes all installed components.                                       |
+| Script | Purpose |
+| --- | --- |
+| **MotW.ps1** | Core logic for zone reassignment, adding, removing, and status checking of MotW. |
+| **MotW-SendTo.ps1** | Simple wrapper that automatically reassigns files to Zone 2 for "Send To" integration. |
+| **Install-MotWContext.ps1** | Installs the CLI tool and "Send To → MotW – Reassign" shortcut. |
+| **Uninstall-MotWContext.ps1** | Cleanly removes all installed components. |
 
 **Features (v1.1.0)**
 - **Zone reassignment** (progressive or direct)
@@ -244,7 +259,7 @@ The `scripts/` directory contains automation-friendly tools that can be installe
 
 After installation, right-click any file and select **"Show more options → Send to → MotW - Reassign"**.
 
-**Interactive Prompt Experience:**
+**Automatic Reassignment:**
 ```
 ============================================================
 MotW Zone Reassignment
@@ -254,35 +269,35 @@ File: document.pdf
 
 Current Zone: Zone 3 - Internet
 
-Reassign to which zone?
+Reassigning to Zone 2 (Trusted Sites)...
 
-  [2] Zone 2 - Trusted Sites (recommended)
-  [1] Zone 1 - Local Intranet
-  [0] Zone 0 - Local Machine
-  [R] Remove MotW entirely (not recommended)
-  [C] Cancel (do nothing)
+Reassigned Zone 3 -> Zone 2 (Trusted Sites): document.pdf
 
-Your choice:
+Press any key to exit...
 ```
 
 **Features:**
-- **Interactive prompt** - Choose target zone for each file
-- **Educational** - See current zone and available options
+- **Automatic reassignment** - Files from Zone 3 (Internet) are automatically reassigned to Zone 2 (Trusted Sites)
+- **Security-conscious** - Zone 4 (Restricted Sites) files are never modified
+- **Simple workflow** - No prompts or choices, just reassign to Trusted Sites
 - **Color-coded** - Visual feedback (Red=Zone 3, Yellow=Zone 2, Green=Zone 1, Cyan=Zone 0)
-- **Intentional friction** - Requires conscious choice
+- **Non-intrusive** - Quick operation without excessive interaction
+- **Comprehensive logging** - All operations logged with RFC 5424 standard levels
 - **No registry editing** - Uses Windows "Send To" folder (works in restrictive environments)
 
 **Single-file workflow:**
 1. Right-click file → Send to → MotW - Reassign
 2. Review current zone in PowerShell window
-3. Choose target zone [2/1/0/R/C]
-4. File is reassigned immediately
+3. File is automatically reassigned to Zone 2 if it's Zone 3 (Zone 4 files are protected and skipped)
+4. Press any key to close
 
 ### CLI Usage
 
+**Security Note:** Progressive reassignment automatically skips Zone 4 (Restricted Sites) files to protect against modifying explicitly blocked content. Direct reassignment with `-TargetZone` will warn but allow advanced users to override if needed.
+
 ```powershell
 # Progressive reassignment (recommended - moves down one zone)
-MotW.ps1 *.pdf                        # Zone 3→2, 2→1, 1→0, 0→remove
+MotW.ps1 *.pdf                        # Zone 3→2, 2→1, 1→0, 0→remove (Zone 4 skipped)
 MotW.ps1 reassign *.docx              # Explicit progressive mode
 
 # Direct reassignment to specific zone
@@ -306,21 +321,21 @@ MotW.ps1 unblock *.pdf                # Removes MotW completely
 ```
 
 **Actions**
-| Action     | Description                                                                      |
-| ---------- | -------------------------------------------------------------------------------- |
+| Action | Description |
+| --- | --- |
 | `reassign` | **Recommended.** Progressive (zone-1) or direct (-TargetZone N) reassignment. |
-| `add`      | Adds MotW metadata (`ZoneId=3` - Internet zone).                                 |
-| `status`   | Displays zone ID, name, and color-coded status for each file.                    |
-| `unblock`  | Removes MotW metadata entirely.                  |
+| `add` | Adds MotW metadata (`ZoneId=3` - Internet zone). |
+| `status` | Displays zone ID, name, and color-coded status for each file. |
+| `unblock` | Removes MotW metadata entirely. |
 
 **Common Parameters**
-| Parameter      | Description                                           |
-| -------------- | ----------------------------------------------------- |
-| `-TargetZone`  | Direct reassignment to specific zone (0-4).           |
-| `-Recurse`     | Process directories recursively.                      |
-| `-WhatIf`      | Show what would happen without making changes.        |
-| `-Confirm`     | Prompt for confirmation before each file operation.   |
-| `-Verbose`     | Display detailed operation information.               |
+| Parameter | Description |
+| --- | --- |
+| `-TargetZone` | Direct reassignment to specific zone (0-4). |
+| `-Recurse` | Process directories recursively. |
+| `-WhatIf` | Show what would happen without making changes. |
+| `-Confirm` | Prompt for confirmation before each file operation. |
+| `-Verbose` | Display detailed operation information. |
 
 **Examples**
 ```powershell
@@ -371,7 +386,7 @@ Installation Options:
   [1] Full Installation (recommended)
       - PowerShell scripts to %USERPROFILE%\Tools\MotW
       - Add to PATH for global access
-      - 'Send To' menu integration with interactive prompt
+      - 'Send To' menu integration (auto-reassign to Zone 2)
 
   [2] Scripts + PATH (no Send To integration)
   [3] Scripts Only (minimal - no PATH or Send To)
@@ -382,9 +397,9 @@ Your choice [1/2/3/C]:
 
 **What Gets Installed:**
 - `%USERPROFILE%\Tools\MotW\MotW.ps1` - Core CLI tool
-- `%USERPROFILE%\Tools\MotW\MotW-SendTo.ps1` - Interactive wrapper for "Send To"
+- `%USERPROFILE%\Tools\MotW\MotW-SendTo.ps1` - Simple wrapper that automatically reassigns to Zone 2
 - Adds `%USERPROFILE%\Tools\MotW` to the user PATH (optional)
-- Creates **"Send To → MotW - Reassign"** shortcut with interactive prompt (if available)
+- Creates **"Send To → MotW - Reassign"** shortcut (if available)
 - **No registry edits required** - uses Windows "Send To" folder
 
 **Non-Interactive Installation:**
@@ -448,7 +463,7 @@ If you prefer not to run the installer:
    `C:\Users\<User>\Tools\MotW`
 2. Copy `MotW.ps1` into that folder.
 3. Add the folder to your **User PATH**:
-   _Settings → System → About → Advanced System Settings → Environment Variables → User variables → Path._
+   *Settings → System → About → Advanced System Settings → Environment Variables → User variables → Path.*
 4. Optional: add a `.cmd` to `shell:sendto` containing
    ```bat
    @echo off
@@ -475,78 +490,21 @@ Tasks should run as the logged-in user (not SYSTEM) to ensure the same access co
 
 ---
 
-## Developer Information
+## For Developers
 
-### Building From Source
+**Building, testing, and contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Building from source
+- Running unit tests (34 automated tests across PowerShell and C#)
+- Integration testing scenarios
+- Development philosophy and code style guidelines
+- Release process
+- Project structure and technical specifications
 
-**Build MotWasher (GUI):**
+**Quick Start:**
 ```powershell
-cd .\MotWasher\
-
-# Default: Framework-Dependent build (MotWasher.exe)
-dotnet publish -c Release
-
-# Optional: Self-Contained build (MotWasher-sc.exe)
-dotnet publish -c Release -p:PublishFlavor=SelfContained
-
-# Build both
-dotnet msbuild -t:PublishBoth -p:Configuration=Release
+# Build everything with tests
+.\Build-Release.ps1 -Version "1.1.0"
 ```
-
-**Build MotWatcher (System Tray):**
-```powershell
-cd .\MotWatcher\
-
-# Default: Framework-Dependent build (MotWatcher.exe)
-dotnet publish -c Release
-
-# Optional: Self-Contained build (MotWatcher-sc.exe)
-dotnet publish -c Release -p:PublishFlavor=SelfContained
-```
-
-**Build All (Release Script):**
-```powershell
-# From repository root
-.\Build-Release.ps1 -Version "1.0.2"
-# Outputs to: .\release\
-```
-
----
-
-### Project Structure
-```
-MotW.Shared/          # Shared library for common code
-├── Services/         # MotW read/write logic
-└── Utils/            # Logging helpers
-
-MotWasher/            # GUI application
-├── Models/           # Data models and view models
-└── MainWindow.xaml   # WPF UI definition
-
-MotWatcher/           # System tray service
-├── Models/           # Configuration models
-├── Services/         # FileWatcher and config services
-└── App.xaml          # System tray application
-
-scripts/              # PowerShell tools
-├── MotW.ps1
-├── Install-MotWContext.ps1
-└── Uninstall-MotWContext.ps1
-```
-
----
-
-### Technical Specifications
-- **Framework:** .NET 9.0
-- **UI:** WPF (Windows Presentation Foundation)
-- **Deployment:** Framework-Dependent (default), Self-Contained (optional)
-- **Target:** Windows x64
-- **Binary Sizes:**
-  - Framework-Dependent: ≈196 KB (MotWasher), ≈197 KB (MotWatcher)
-  - Self-Contained: ≈60 MB (includes .NET runtime)
-- **PowerShell Version:** 5.1 or higher
-- **Permissions:** Per-user only (no admin rights required)
-- **Shared Code:** MotW.Shared library used by both GUI applications
 
 ---
 
@@ -556,14 +514,24 @@ These tools modify only **NTFS alternate data streams** (`Zone.Identifier`).
 They never alter file content or integrity.
 
 ### Intended Use
-- **Correcting improperly configured zone policies** from underwhelming IT administration
-- Reassigning files from trusted internal sources marked incorrectly as Internet zone
-- Temporary workaround while IT implements proper Group Policy configurations
+- **Correcting zone assignments** while Group Policy configurations are being implemented
+- Reassigning files from trusted internal sources marked as Zone 3 (Internet)
+- Temporary workaround while working with your organization to implement proper Group Policy configurations
 
 ### Not Intended For
 - Bypassing legitimate security controls
 - Processing files from untrusted or unknown sources
-- Circumventing corporate security policies that are properly configured
+- Circumventing configured corporate security policies
+- **Modifying Zone 4 (Restricted Sites) files** - these are explicitly blocked and are never touched by MotW Tools
+
+### Zone 4 Protection Policy
+**MotW Tools will never modify Zone 4 (Restricted Sites) files.** Zone 4 is not a default marking - it's explicitly set by IT policy to indicate files that are known to be malicious or have been specifically blocked. All MotW Tools automatically skip Zone 4 files:
+
+- **MotWasher**: Skips Zone 4 files during progressive washing with error message
+- **MotWatcher**: Never processes Zone 4 files regardless of configuration
+- **MotW.ps1 (progressive)**: Skips Zone 4 files automatically with warning
+- **MotW.ps1 (direct)**: Warns about Zone 4 but allows override for advanced users
+- **MotW-SendTo.ps1**: Refuses to process Zone 4 files with warning message
 
 ### The Proper Solution
 Ask your IT department to:
@@ -572,7 +540,7 @@ Ask your IT department to:
 3. Configure trusted download locations using Zone Elevation policies
 4. Set up UNC path exclusions for internal file shares
 
-**MotW Tools should be used as a temporary productivity aid** while working with IT to implement the correct long-term solution.
+**MotW Tools should be used as a temporary productivity aid** while working with your organization to implement the correct long-term solution.
 
 ---
 

@@ -8,7 +8,7 @@
 
   RECOMMENDED: Use 'reassign' instead of 'unblock' to move files between zones
   rather than removing MotW entirely. This is the preferred approach for
-  handling files from improperly configured IT policies.
+  handling files while Group Policy zone configurations are being implemented.
 
 .USAGE
   MotW.ps1 reassign *.pdf               # Progressive (zone 3→2, 2→1, 1→0, 0→remove)
@@ -299,6 +299,21 @@ switch ($Action) {
                         continue
                     }
 
+                    # Security check: Warn about Zone 4 (Restricted Sites)
+                    if ($currentZone -eq 4) {
+                        Write-Warning "Zone 4 (Restricted Sites) detected: $f"
+                        Write-Warning "This file has been explicitly restricted by policy."
+                        Write-LogWarn "Zone 4 reassignment attempt: $f"
+
+                        # Only proceed if user explicitly specified -TargetZone (not progressive mode)
+                        if ($TargetZone -lt 0) {
+                            Write-Host "[Skipped - Zone 4 Protected] $f" -ForegroundColor Yellow
+                            Write-LogWarn "Zone 4 reassignment skipped (progressive mode): $f"
+                            $successCount++
+                            continue
+                        }
+                    }
+
                     # Determine target zone
                     if ($TargetZone -ge 0) {
                         # Direct reassignment to specified zone
@@ -319,10 +334,9 @@ switch ($Action) {
                     else {
                         # Reassign to new zone
                         if (Set-ZoneId -Path $f -ZoneId $newZone) {
-                            $currentZoneName = Get-ZoneName -ZoneId $currentZone
                             $newZoneName = Get-ZoneName -ZoneId $newZone
-                            Write-Host "Reassigned Zone $currentZone → Zone $newZone ($newZoneName): $f" -ForegroundColor Cyan
-                            Write-LogInfo "Reassigned Zone $currentZone → Zone $newZone : $f"
+                            Write-Host "Reassigned Zone $currentZone -> Zone $newZone ($newZoneName): $f" -ForegroundColor Cyan
+                            Write-LogInfo "Reassigned Zone $currentZone -> Zone $newZone : $f"
                             $successCount++
                         }
                         else {

@@ -70,29 +70,31 @@ public static class StatisticsService
 
     public static void RecordFileProcessed(WatcherStatistics stats, string filePath, long fileSize, int zoneId)
     {
+        ArgumentNullException.ThrowIfNull(stats);
+
         // Update totals
         stats.TotalFilesProcessed++;
         stats.TotalBytesProcessed += fileSize;
         stats.LastProcessedDate = DateTime.UtcNow;
 
-        // Update zone ID stats
-        if (!stats.FilesByZoneId.ContainsKey(zoneId))
+        // Update zone ID stats - use TryGetValue to avoid double lookup
+        if (!stats.FilesByZoneId.TryGetValue(zoneId, out long zoneCount))
         {
-            stats.FilesByZoneId[zoneId] = 0;
+            zoneCount = 0;
         }
-        stats.FilesByZoneId[zoneId]++;
+        stats.FilesByZoneId[zoneId] = zoneCount + 1;
 
-        // Update file extension stats
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        // Update file extension stats - use TryGetValue to avoid double lookup
+        var extension = Path.GetExtension(filePath).ToUpperInvariant();
         if (string.IsNullOrEmpty(extension))
         {
             extension = "(no extension)";
         }
-        if (!stats.FilesByExtension.ContainsKey(extension))
+        if (!stats.FilesByExtension.TryGetValue(extension, out long extCount))
         {
-            stats.FilesByExtension[extension] = 0;
+            extCount = 0;
         }
-        stats.FilesByExtension[extension]++;
+        stats.FilesByExtension[extension] = extCount + 1;
 
         // Update daily history
         var today = DateTime.UtcNow.Date;
@@ -110,6 +112,8 @@ public static class StatisticsService
 
     public static void Reset(WatcherStatistics stats)
     {
+        ArgumentNullException.ThrowIfNull(stats);
+
         stats.TotalFilesProcessed = 0;
         stats.TotalBytesProcessed = 0;
         stats.LastResetDate = DateTime.UtcNow;

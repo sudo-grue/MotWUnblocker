@@ -66,8 +66,10 @@ namespace MotWasher.Models
 
         private static string FormatBytes(long bytes)
         {
-            if (bytes == 0) return "0 B";
-            if (bytes < 0) return "Invalid";
+            if (bytes == 0)
+                return "0 B";
+            if (bytes < 0)
+                return "Invalid";
 
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             double len = bytes;

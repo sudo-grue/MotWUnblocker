@@ -74,10 +74,10 @@ Write-UninstallLog -Level "INFO" -Message "MotW Uninstaller v$Script:Version sta
 
 # Detection: what is currently installed?
 $detected = @{
-    Scripts = Test-Path $ToolRoot
+    Scripts        = Test-Path $ToolRoot
     SendToShortcut = (Test-Path $SendToLnk) -or (Test-Path $SendToLnkOld)
-    InPath = $false
-    LogFolder = Test-Path $LogFolder
+    InPath         = $false
+    LogFolder      = Test-Path $LogFolder
 }
 
 # Check PATH
@@ -91,25 +91,29 @@ if ($pathUser) {
 Write-Host "`nDetected Installations:" -ForegroundColor Cyan
 if ($detected.Scripts) {
     Write-Host "  [X] Scripts in $ToolRoot" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "  [ ] Scripts (not found)" -ForegroundColor Gray
 }
 
 if ($detected.InPath) {
     Write-Host "  [X] PATH entry" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "  [ ] PATH entry (not found)" -ForegroundColor Gray
 }
 
 if ($detected.SendToShortcut) {
     Write-Host "  [X] Send To shortcut" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "  [ ] Send To shortcut (not found)" -ForegroundColor Gray
 }
 
 if ($detected.LogFolder) {
     Write-Host "  [X] Log folder (%LOCALAPPDATA%\MotW)" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "  [ ] Log folder (not found)" -ForegroundColor Gray
 }
 

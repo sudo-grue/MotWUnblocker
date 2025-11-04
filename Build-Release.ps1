@@ -23,12 +23,63 @@ $ReleaseNotesFile = Join-Path $ReleaseDir "RELEASE-NOTES.md"
 
 Write-Host "`nBuilding MotW Tools v$Version Release..." -ForegroundColor Cyan
 
-if (Test-Path $ReleaseDir) {
-    Write-Host "Cleaning existing release directory..." -ForegroundColor Yellow
-    Remove-Item $ReleaseDir -Recurse -Force
+# Run tests before building
+Write-Host "`nRunning tests..." -ForegroundColor Cyan
+
+Write-Host "  PowerShell tests (Pester)..." -ForegroundColor Gray
+try {
+    $pesterResult = Invoke-Pester -Path "tests\MotW.Tests.ps1" -PassThru -Quiet
+
+    if ($pesterResult.FailedCount -gt 0) {
+        Write-Host "    PowerShell: $($pesterResult.PassedCount) passed, $($pesterResult.FailedCount) failed" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "    PowerShell: All $($pesterResult.PassedCount) tests passed" -ForegroundColor Green
+    }
+}
+catch {
+    Write-Host "    PowerShell: Test execution failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
+Write-Host "  C# tests (xUnit)..." -ForegroundColor Gray
+try {
+    $dotnetTestOutput = dotnet test MotW.Shared.Tests/MotW.Shared.Tests.csproj --nologo --verbosity quiet 2>&1
+    $lastLine = $dotnetTestOutput | Select-Object -Last 1
+
+    if ($lastLine -match 'Passed!\s+-\s+Failed:\s+(\d+),\s+Passed:\s+(\d+)') {
+        $failed = [int]$matches[1]
+        $passed = [int]$matches[2]
+
+        if ($failed -gt 0) {
+            Write-Host "    C#: $passed passed, $failed failed" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "    C#: All $passed tests passed" -ForegroundColor Green
+        }
+    }
+    else {
+        Write-Host "    C#: Tests completed (check output for details)" -ForegroundColor Yellow
+    }
+}
+catch {
+    Write-Host "    C#: Test execution failed: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+if (Test-Path $ReleaseDir) {
+    Write-Host "`nCleaning existing release directory..." -ForegroundColor Yellow
+    try {
+        Remove-Item $ReleaseDir -Recurse -Force -ErrorAction Stop
+    }
+    catch {
+        Write-Host "  Warning: Could not remove release directory. It may be in use." -ForegroundColor Yellow
+        Write-Host "  Attempting to clean contents instead..." -ForegroundColor Yellow
+        Get-ChildItem $ReleaseDir -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
+    }
+}
+
+if (-not (Test-Path $ReleaseDir)) {
+    New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
+}
 
 Write-Host "`nBuilding MotWasher..." -ForegroundColor Cyan
 Set-Location (Join-Path $PSScriptRoot "MotWasher")
@@ -63,7 +114,39 @@ Copy-Item $MotWasherExe -Destination $ReleaseDir
 Copy-Item $MotWatcherExe -Destination $ReleaseDir
 Copy-Item "scripts\MotW.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\MotW-SendTo.ps1" -Destination $ReleaseDir
-Copy-Item "scripts\Install-MotWContext.ps1" -Destination $ReleaseDir
+
+# Generate Install-MotWContext.ps1 with fresh embedded MotW.ps1
+Write-Host "  Injecting current MotW.ps1 into Install-MotWContext.ps1..." -ForegroundColor Gray
+$motwContent = Get-Content "scripts\MotW.ps1" -Raw
+$installerTemplate = Get-Content "scripts\Install-MotWContext.ps1"
+
+# Find the start and end of the embedded script
+$startLine = -1
+$endLine = -1
+for ($i = 0; $i -lt $installerTemplate.Count; $i++) {
+    if ($installerTemplate[$i] -match '^\s*\$motwScriptContent = @''$') {
+        $startLine = $i
+    }
+    if ($startLine -ge 0 -and $installerTemplate[$i] -match '^''@$') {
+        $endLine = $i
+        break
+    }
+}
+
+if ($startLine -ge 0 -and $endLine -gt $startLine) {
+    # Build new installer with injected content
+    $newInstaller = @()
+    $newInstaller += $installerTemplate[0..($startLine)]
+    $newInstaller += $motwContent
+    $newInstaller += $installerTemplate[$endLine..($installerTemplate.Count - 1)]
+
+    Set-Content -Path (Join-Path $ReleaseDir "Install-MotWContext.ps1") -Value $newInstaller -Encoding UTF8
+    Write-Host "  Install-MotWContext.ps1 generated with v$Version MotW.ps1 embedded" -ForegroundColor Green
+}
+else {
+    Write-Error "Failed to find embedded script markers in Install-MotWContext.ps1"
+}
+
 Copy-Item "scripts\Uninstall-MotWContext.ps1" -Destination $ReleaseDir
 
 Write-Host "`nGenerating release notes..." -ForegroundColor Cyan
@@ -71,15 +154,15 @@ Write-Host "`nGenerating release notes..." -ForegroundColor Cyan
 $releaseNotes = @"
 # MotW Tools v$Version
 
-Major philosophical shift from "MotW removal" to "zone reassignment" with improved IT policy messaging.
+Major philosophical shift from "MotW removal" to "zone reassignment" with improved policy messaging.
 
 ## What's New in v1.1.0
 
 **Philosophy Change: Zone Reassignment > Removal**
 - Tools now emphasize reassigning files between security zones rather than removing MotW entirely
-- Clear messaging: This is a workaround for improperly configured IT policies, not a security bypass
-- Target audience: Professionals dealing with underwhelming IT departments
-- Intentional friction (progressive washing) reminds users to push IT to fix root causes
+- Clear messaging: This is a temporary workaround while Group Policy zone configurations are being implemented
+- Target audience: Professionals working in environments where zone policies are still being configured
+- Intentional friction (progressive washing) reminds users that configuring zone policies is the proper solution
 
 **PowerShell Scripts (v1.1.0)**
 - **NEW**: ``reassign`` action (default) - Progressive zone washing (3→2→1→0→remove)
@@ -220,7 +303,8 @@ Write-Host "`nFiles included:" -ForegroundColor Cyan
 Get-ChildItem -Path $ReleaseDir -File | ForEach-Object {
     $size = if ($_.Length -gt 1MB) {
         "{0:N2} MB" -f ($_.Length / 1MB)
-    } else {
+    }
+    else {
         "{0:N2} KB" -f ($_.Length / 1KB)
     }
     Write-Host "  $($_.Name) ($size)" -ForegroundColor White

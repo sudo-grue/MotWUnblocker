@@ -10,6 +10,7 @@ namespace MotWatcher.Services
 {
     public class FileWatcherService : IDisposable
     {
+        private static readonly char[] LineSeparators = ['\r', '\n'];
         private readonly WatcherConfig _config;
         private readonly List<FileSystemWatcher> _watchers = new();
         private readonly ConcurrentDictionary<string, DateTime> _pendingFiles = new();
@@ -159,7 +160,7 @@ namespace MotWatcher.Services
             if (dir.FileTypeFilters.Contains("*"))
                 return true;
 
-            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+            var extension = Path.GetExtension(filePath).ToUpperInvariant();
             return dir.FileTypeFilters.Any(filter =>
                 filter.Equals(extension, StringComparison.OrdinalIgnoreCase) ||
                 filter.Equals("*" + extension, StringComparison.OrdinalIgnoreCase));
@@ -232,6 +233,14 @@ namespace MotWatcher.Services
                     }
 
                     var zoneId = GetZoneId(filePath) ?? 3; // Default to Internet zone if unknown
+
+                    // Security check: Never process Zone 4 (Restricted Sites)
+                    // Zone 4 means IT has explicitly restricted this file - we should never touch it
+                    if (zoneId == 4)
+                    {
+                        Logger.Warning($"Zone 4 (Restricted Sites) detected - skipping per security policy: {Path.GetFileName(filePath)}");
+                        return;
+                    }
 
                     // Check Zone ID threshold if configured
                     if (matchingDir.MinZoneId.HasValue)
@@ -315,10 +324,10 @@ namespace MotWatcher.Services
                     return null;
 
                 var content = File.ReadAllText(streamPath);
-                var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var lines = content.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
                 var zoneLine = lines.FirstOrDefault(l => l.StartsWith("ZoneId=", StringComparison.OrdinalIgnoreCase));
 
-                if (zoneLine != null && int.TryParse(zoneLine.Substring(7), out var zoneId))
+                if (zoneLine != null && int.TryParse(zoneLine.AsSpan(7), out var zoneId))
                     return zoneId;
             }
             catch
@@ -353,8 +362,8 @@ namespace MotWatcher.Services
             // Convert glob pattern to regex
             // * matches any characters, ? matches single character
             var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
-                .Replace("\\*", ".*")
-                .Replace("\\?", ".") + "$";
+                .Replace("\\*", ".*", StringComparison.Ordinal)
+                .Replace("\\?", ".", StringComparison.Ordinal) + "$";
 
             return System.Text.RegularExpressions.Regex.IsMatch(
                 fileName,
@@ -433,6 +442,14 @@ namespace MotWatcher.Services
 
             var zoneId = GetZoneId(filePath) ?? 3; // Default to Internet zone if unknown
 
+            // Security check: Never process Zone 4 (Restricted Sites)
+            // Zone 4 means IT has explicitly restricted this file - we should never touch it
+            if (zoneId == 4)
+            {
+                Logger.Warning($"Zone 4 (Restricted Sites) detected - skipping per security policy: {Path.GetFileName(filePath)}");
+                return;
+            }
+
             // Check Zone ID threshold if configured
             if (matchingDir.MinZoneId.HasValue)
             {
@@ -494,8 +511,17 @@ namespace MotWatcher.Services
 
         public void Dispose()
         {
-            Stop();
-            _cts.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Stop();
+                _cts.Dispose();
+            }
         }
     }
 

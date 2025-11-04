@@ -1,20 +1,19 @@
-using Microsoft.Win32;
-using MotW.Shared.Services;
-using MotW.Shared.Utils;
-using MotWasher.Models;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
+using MotW.Shared.Services;
+using MotW.Shared.Utils;
+using MotWasher.Models;
 
 namespace MotWasher
 {
     public partial class MainWindow : Window
     {
         private readonly ObservableCollection<FileEntry> _files = new();
-        private const string NoFilesSelectedMessage = "No files selected.";
         private bool _isProcessing;
 
         public MainWindow()
@@ -28,7 +27,8 @@ namespace MotWasher
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (_isProcessing) return;
+            if (_isProcessing)
+                return;
 
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control)
             {
@@ -84,7 +84,8 @@ namespace MotWasher
 
         private async void Refresh_Click(object sender, RoutedEventArgs e)
         {
-            if (_isProcessing) return;
+            if (_isProcessing)
+                return;
 
             SetProcessingState(true);
             SetStatus("Refreshing zones...");
@@ -111,7 +112,8 @@ namespace MotWasher
 
         private async void WashFiles_Click(object sender, RoutedEventArgs e)
         {
-            if (_isProcessing) return;
+            if (_isProcessing)
+                return;
 
             if (_files.Count == 0)
             {
@@ -130,54 +132,38 @@ namespace MotWasher
                 {
                     try
                     {
-                        var currentZone = MotWService.GetZoneId(file.FullPath);
+                        var wasZone = MotWService.GetZoneId(file.FullPath);
 
-                        if (!currentZone.HasValue)
+                        if (MotWService.ReassignProgressive(file.FullPath, out var error))
                         {
-                            clean++;
-                            continue;
-                        }
+                            var newZone = MotWService.GetZoneId(file.FullPath);
 
-                        var nextZone = currentZone.Value - 1;
-
-                        if (nextZone < 0)
-                        {
-                            // Remove MotW entirely (Zone 0 → No MotW)
-                            if (MotWService.Unblock(file.FullPath, out var error))
+                            Dispatcher.Invoke(() =>
                             {
-                                Dispatcher.Invoke(() =>
-                                {
-                                    file.HasMotW = false;
-                                    file.CurrentZoneId = null;
-                                    file.NextZoneId = null;
-                                });
+                                file.HasMotW = newZone.HasValue;
+                                file.CurrentZoneId = newZone;
+                                file.NextZoneId = CalculateNextZone(newZone);
+                            });
+
+                            if (!wasZone.HasValue)
+                            {
+                                clean++;
+                            }
+                            else if (!newZone.HasValue)
+                            {
                                 removed++;
-                                Logger.Info($"Removed MotW from: {file.FullPath}");
+                                Logger.Info($"Progressive wash removed MotW (was Zone {wasZone}): {file.FullPath}");
                             }
                             else
                             {
-                                failed++;
-                                Logger.Error($"Failed to remove MotW from {file.FullPath}: {error}");
+                                washed++;
+                                Logger.Info($"Progressive wash {file.FullPath}: Zone {wasZone} → Zone {newZone}");
                             }
                         }
                         else
                         {
-                            // Reassign to next zone
-                            if (MotWService.Reassign(file.FullPath, nextZone, out var error))
-                            {
-                                Dispatcher.Invoke(() =>
-                                {
-                                    file.CurrentZoneId = nextZone;
-                                    file.NextZoneId = CalculateNextZone(nextZone);
-                                });
-                                washed++;
-                                Logger.Info($"Washed {file.FullPath}: Zone {currentZone} → Zone {nextZone}");
-                            }
-                            else
-                            {
-                                failed++;
-                                Logger.Error($"Failed to wash {file.FullPath}: {error}");
-                            }
+                            failed++;
+                            Logger.Error($"Failed to wash {file.FullPath}: {error}");
                         }
                     }
                     catch (Exception ex)
@@ -192,10 +178,14 @@ namespace MotWasher
             _files.Clear();
 
             var statusParts = new List<string>();
-            if (washed > 0) statusParts.Add($"{washed} washed");
-            if (removed > 0) statusParts.Add($"{removed} MotW removed");
-            if (clean > 0) statusParts.Add($"{clean} already clean");
-            if (failed > 0) statusParts.Add($"{failed} failed");
+            if (washed > 0)
+                statusParts.Add($"{washed} washed");
+            if (removed > 0)
+                statusParts.Add($"{removed} MotW removed");
+            if (clean > 0)
+                statusParts.Add($"{clean} already clean");
+            if (failed > 0)
+                statusParts.Add($"{failed} failed");
 
             SetStatus($"Wash complete! {string.Join(", ", statusParts)}. Drop files again to wash further.");
             SetProcessingState(false);
@@ -203,39 +193,11 @@ namespace MotWasher
 
         private int? CalculateNextZone(int? currentZone)
         {
-            if (!currentZone.HasValue) return null;
-            if (currentZone.Value <= 0) return null; // No further washing possible
+            if (!currentZone.HasValue)
+                return null;
+            if (currentZone.Value <= 0)
+                return null; // No further washing possible
             return currentZone.Value - 1;
-        }
-
-        private async Task<(int success, int failed)> ProcessFilesAsync(
-            List<FileEntry> files,
-            Func<FileEntry, Task<bool>> operation)
-        {
-            int ok = 0, fail = 0;
-            int total = files.Count;
-
-            for (int i = 0; i < files.Count; i++)
-            {
-                var file = files[i];
-                SetStatus($"Processing {i + 1}/{total}: {file.Name}");
-
-                try
-                {
-                    var result = await operation(file);
-                    if (result)
-                        ok++;
-                    else
-                        fail++;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error($"Error processing {file.FullPath}: {ex.Message}");
-                    fail++;
-                }
-            }
-
-            return (ok, fail);
         }
 
         private void SetProcessingState(bool isProcessing)
@@ -274,10 +236,12 @@ namespace MotWasher
             {
                 try
                 {
-                    if (!File.Exists(p)) { skipped++; continue; }
+                    if (!File.Exists(p))
+                    { skipped++; continue; }
                     if (_files.Any(f => string.Equals(f.FullPath, p, StringComparison.OrdinalIgnoreCase)))
                     {
-                        skipped++; continue;
+                        skipped++;
+                        continue;
                     }
                     var fi = new FileInfo(p);
                     var zoneId = MotWService.GetZoneId(fi.FullName);

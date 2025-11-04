@@ -1,0 +1,39 @@
+<Project>
+  <PropertyGroup>
+    <!-- Enable .NET Code Analyzers -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Treat warnings as errors for CI/CD -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- Nullable reference types -->
+    <Nullable>enable</Nullable>
+
+    <!-- Code analysis mode -->
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Roslynator Analyzers - 500+ code quality checks -->
+    <PackageReference Include="Roslynator.Analyzers" Version="4.12.9">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Suppress specific rules if needed -->
+  <PropertyGroup>
+    <!-- Disable specific rules that may be too strict for this project -->
+    <NoWarn>$(NoWarn);CA1031</NoWarn> <!-- Do not catch general exception types - we use this intentionally for logging -->
+    <NoWarn>$(NoWarn);CA1716</NoWarn> <!-- Namespace name conflicts with reserved keyword "Shared" - only affects VB.NET consumers -->
+    <NoWarn>$(NoWarn);CA1515</NoWarn> <!-- Make types internal - WPF requires public types for XAML -->
+    <NoWarn>$(NoWarn);CA1303</NoWarn> <!-- Localization warnings - not needed for this Windows-only English tool -->
+    <NoWarn>$(NoWarn);CA2227</NoWarn> <!-- Collection property setters - needed for JSON deserialization -->
+    <NoWarn>$(NoWarn);CA1805</NoWarn> <!-- Redundant initializers - explicit for clarity -->
+    <NoWarn>$(NoWarn);CA1002</NoWarn> <!-- Use Collection<T> instead of List<T> - List<T> is fine for this use case -->
+    <NoWarn>$(NoWarn);CA1305</NoWarn> <!-- Specify IFormatProvider - not needed for display-only formatting -->
+    <NoWarn>$(NoWarn);CA1001</NoWarn> <!-- App class owns disposables - handled via Application lifetime -->
+  </PropertyGroup>
+</Project>

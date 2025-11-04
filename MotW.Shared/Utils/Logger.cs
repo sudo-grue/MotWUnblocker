@@ -89,7 +89,7 @@ namespace MotW.Shared.Utils
                 LogLevel.Notice => "NOTICE",
                 LogLevel.Info => "INFO",
                 LogLevel.Debug => "DEBUG",
-                _ => level.ToString().ToUpper()
+                _ => level.ToString().ToUpperInvariant()
             };
         }
 
@@ -126,9 +126,9 @@ namespace MotW.Shared.Utils
                 return string.Empty;
 
             return message
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n")
-                .Replace("\t", "\\t");
+                .Replace("\r", "\\r", StringComparison.Ordinal)
+                .Replace("\n", "\\n", StringComparison.Ordinal)
+                .Replace("\t", "\\t", StringComparison.Ordinal);
         }
 
         public static string LogFilePath => LogPath;

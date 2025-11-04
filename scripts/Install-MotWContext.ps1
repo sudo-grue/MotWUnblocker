@@ -241,7 +241,7 @@ if (-not $motwScriptContent) {
 
   RECOMMENDED: Use 'reassign' instead of 'unblock' to move files between zones
   rather than removing MotW entirely. This is the preferred approach for
-  handling files from improperly configured IT policies.
+  handling files while Group Policy zone configurations are being implemented.
 
 .USAGE
   MotW.ps1 reassign *.pdf               # Progressive (zone 3→2, 2→1, 1→0, 0→remove)
