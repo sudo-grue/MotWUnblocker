@@ -1,38 +1,49 @@
 <#
 .SYNOPSIS
-  View/Add/Remove Mark-of-the-Web (Zone.Identifier) on files.
+  View/Add/Reassign/Remove Mark-of-the-Web (Zone.Identifier) on files.
 
 .DESCRIPTION
   Manages the NTFS Zone.Identifier alternate data stream that marks files
-  as downloaded from the Internet. Version 1.0.0
+  as downloaded from the Internet or other security zones. Version 1.1.0
+
+  RECOMMENDED: Use 'reassign' instead of 'unblock' to move files between zones
+  rather than removing MotW entirely. This is the preferred approach for
+  handling files from improperly configured IT policies.
 
 .USAGE
-  MotW.ps1 *.pdf                 # Unblock (default)
-  MotW.ps1 unblock *.pdf
-  MotW.ps1 add *.pdf
-  MotW.ps1 status .
-  MotW.ps1 unblock . -Recurse
-  MotW.ps1 add *.exe -WhatIf     # Preview changes
+  MotW.ps1 reassign *.pdf               # Progressive (zone 3→2, 2→1, 1→0, 0→remove)
+  MotW.ps1 reassign *.pdf -TargetZone 2 # Direct reassign to Trusted Sites
+  MotW.ps1 reassign . -Recurse          # Progressive wash recursively
+  MotW.ps1 reassign *.exe -WhatIf       # Preview changes
+  MotW.ps1 add *.pdf                    # Add MotW (Zone 3 - Internet)
+  MotW.ps1 status .                     # Check MotW status
+  MotW.ps1 unblock *.pdf                # Remove MotW entirely
 #>
 
 [CmdletBinding(PositionalBinding = $false, SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
-    [ValidateSet('unblock', 'add', 'status')]
-    [string]$Action = 'unblock',
+    [ValidateSet('reassign', 'unblock', 'add', 'status')]
+    [string]$Action = 'reassign',
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ArgsRest,
 
+    [ValidateRange(0, 4)]
+    [int]$TargetZone = -1,
+
     [switch]$Recurse
 )
 
-$Script:Version = "1.0.0"
+$Script:Version = "1.1.0"
 $Script:LogPath = Join-Path $env:LOCALAPPDATA "MotW\motw.log"
 $Script:LogDir = Split-Path $Script:LogPath -Parent
 
+# RFC 5424 (Syslog Protocol) standard logging levels
 function Write-Log {
     param(
-        [Parameter(Mandatory)][string]$Level,
+        [Parameter(Mandatory)]
+        [ValidateSet('EMERG', 'ALERT', 'CRIT', 'ERROR', 'WARN', 'NOTICE', 'INFO', 'DEBUG')]
+        [string]$Level,
         [Parameter(Mandatory)][string]$Message
     )
 
@@ -52,11 +63,20 @@ function Write-Log {
     }
 }
 
-function Write-LogInfo { param([string]$Message) Write-Log -Level "INFO" -Message $Message }
-function Write-LogWarn { param([string]$Message) Write-Log -Level "WARN" -Message $Message }
+# RFC 5424 standard logging functions
+function Write-LogEmergency { param([string]$Message) Write-Log -Level "EMERG" -Message $Message }
+function Write-LogAlert { param([string]$Message) Write-Log -Level "ALERT" -Message $Message }
+function Write-LogCritical { param([string]$Message) Write-Log -Level "CRIT" -Message $Message }
 function Write-LogError { param([string]$Message) Write-Log -Level "ERROR" -Message $Message }
+function Write-LogWarning { param([string]$Message) Write-Log -Level "WARN" -Message $Message }
+function Write-LogNotice { param([string]$Message) Write-Log -Level "NOTICE" -Message $Message }
+function Write-LogInfo { param([string]$Message) Write-Log -Level "INFO" -Message $Message }
+function Write-LogDebug { param([string]$Message) Write-Log -Level "DEBUG" -Message $Message }
 
-$validActions = @('unblock', 'add', 'status')
+# Backwards compatibility alias
+function Write-LogWarn { param([string]$Message) Write-LogWarning -Message $Message }
+
+$validActions = @('reassign', 'unblock', 'add', 'status')
 [string[]]$Paths = @()
 
 if ($ArgsRest -and $ArgsRest.Count -gt 0) {
@@ -69,7 +89,7 @@ if ($ArgsRest -and $ArgsRest.Count -gt 0) {
     }
 }
 else {
-    Write-Error "No paths provided. Example: MotW.ps1 *.pdf  or  MotW.ps1 unblock . -Recurse"
+    Write-Error "No paths provided. Example: MotW.ps1 reassign *.pdf  or  MotW.ps1 status . -Recurse"
     Write-LogError "No paths provided by user"
     return
 }
@@ -142,6 +162,63 @@ function Test-HasMotW {
     }
 }
 
+function Get-ZoneId {
+    param([Parameter(Mandatory)][string]$Path)
+
+    if (-not (Test-HasMotW -Path $Path)) {
+        return $null
+    }
+
+    try {
+        $content = Get-Content -LiteralPath $Path -Stream Zone.Identifier -ErrorAction Stop
+        foreach ($line in $content) {
+            if ($line -match '^ZoneId=(\d+)') {
+                return [int]$matches[1]
+            }
+        }
+    }
+    catch {
+        Write-LogError "Failed to read ZoneId from $Path : $_"
+    }
+
+    return $null
+}
+
+function Set-ZoneId {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][int]$ZoneId
+    )
+
+    if ($ZoneId -lt 0 -or $ZoneId -gt 4) {
+        Write-LogError "Invalid ZoneId: $ZoneId. Must be 0-4."
+        return $false
+    }
+
+    try {
+        $content = "[ZoneTransfer]`nZoneId=$ZoneId`nHostUrl=about:internet"
+        Set-Content -LiteralPath $Path -Stream Zone.Identifier -Value $content -Force -ErrorAction Stop
+        return $true
+    }
+    catch {
+        Write-LogError "Failed to set ZoneId on $Path : $_"
+        return $false
+    }
+}
+
+function Get-ZoneName {
+    param([int]$ZoneId)
+
+    switch ($ZoneId) {
+        0 { return "Local Machine" }
+        1 { return "Local Intranet" }
+        2 { return "Trusted Sites" }
+        3 { return "Internet" }
+        4 { return "Restricted Sites" }
+        default { return "Unknown" }
+    }
+}
+
 $files = Resolve-Targets -InputPaths $Paths -Recurse:$Recurse
 if (-not $files -or $files.Count -eq 0) {
     Write-LogWarn "No files found to process"
@@ -202,16 +279,87 @@ switch ($Action) {
         }
     }
 
+    'reassign' {
+        foreach ($f in $files) {
+            if ($PSCmdlet.ShouldProcess($f, "Reassign zone")) {
+                try {
+                    if (-not (Test-Path -LiteralPath $f)) {
+                        Write-Warning "File not found: $f"
+                        Write-LogWarn "File not found: $f"
+                        $failCount++
+                        continue
+                    }
+
+                    $currentZone = Get-ZoneId -Path $f
+
+                    if ($null -eq $currentZone) {
+                        Write-Host "[Already Clean] $f" -ForegroundColor Gray
+                        Write-LogInfo "File already clean: $f"
+                        $successCount++
+                        continue
+                    }
+
+                    # Determine target zone
+                    if ($TargetZone -ge 0) {
+                        # Direct reassignment to specified zone
+                        $newZone = $TargetZone
+                    }
+                    else {
+                        # Progressive mode: move down one zone level
+                        $newZone = $currentZone - 1
+                    }
+
+                    # If new zone would be < 0, remove MotW entirely
+                    if ($newZone -lt 0) {
+                        Remove-Item -LiteralPath $f -Stream Zone.Identifier -ErrorAction Stop
+                        Write-Host "Removed MotW (was Zone $currentZone): $f" -ForegroundColor Green
+                        Write-LogInfo "Removed MotW from Zone $currentZone : $f"
+                        $successCount++
+                    }
+                    else {
+                        # Reassign to new zone
+                        if (Set-ZoneId -Path $f -ZoneId $newZone) {
+                            $currentZoneName = Get-ZoneName -ZoneId $currentZone
+                            $newZoneName = Get-ZoneName -ZoneId $newZone
+                            Write-Host "Reassigned Zone $currentZone → Zone $newZone ($newZoneName): $f" -ForegroundColor Cyan
+                            Write-LogInfo "Reassigned Zone $currentZone → Zone $newZone : $f"
+                            $successCount++
+                        }
+                        else {
+                            Write-Warning "Failed to reassign: $f"
+                            Write-LogError "Reassignment failed: $f"
+                            $failCount++
+                        }
+                    }
+                }
+                catch {
+                    Write-Warning "Failed to reassign: $f - $($_.Exception.Message)"
+                    Write-LogError "Reassign failed: $f - $($_.Exception.Message)"
+                    $failCount++
+                }
+            }
+        }
+    }
+
     'status' {
         foreach ($f in $files) {
             try {
                 if (Test-Path -LiteralPath $f) {
-                    $has = Test-HasMotW -Path $f
-                    if ($has) {
-                        Write-Host "[MotW]  $f" -ForegroundColor Red
+                    $zoneId = Get-ZoneId -Path $f
+                    if ($null -ne $zoneId) {
+                        $zoneName = Get-ZoneName -ZoneId $zoneId
+                        $color = switch ($zoneId) {
+                            0 { 'Cyan' }
+                            1 { 'Green' }
+                            2 { 'Yellow' }
+                            3 { 'Red' }
+                            4 { 'Magenta' }
+                            default { 'White' }
+                        }
+                        Write-Host "[Zone $zoneId - $zoneName] $f" -ForegroundColor $color
                     }
                     else {
-                        Write-Host "[clean] $f" -ForegroundColor Gray
+                        Write-Host "[Clean] $f" -ForegroundColor Gray
                     }
                     $successCount++
                 }

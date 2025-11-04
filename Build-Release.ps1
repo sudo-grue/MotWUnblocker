@@ -6,13 +6,13 @@
   Builds Framework-Dependent version of MotWasher (default) and MotWatcher,
   copies PowerShell scripts, generates release notes and checksums.
 
-  Version 1.0.0
+  Version 1.1.0
 #>
 
 [CmdletBinding()]
 param(
     [string]$Configuration = "Release",
-    [string]$Version = "1.0.1"
+    [string]$Version = "1.1.0"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,6 +62,7 @@ $MotWatcherExe = "MotWatcher\bin\$Configuration\publish\MotWatcher.exe"
 Copy-Item $MotWasherExe -Destination $ReleaseDir
 Copy-Item $MotWatcherExe -Destination $ReleaseDir
 Copy-Item "scripts\MotW.ps1" -Destination $ReleaseDir
+Copy-Item "scripts\MotW-SendTo.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\Install-MotWContext.ps1" -Destination $ReleaseDir
 Copy-Item "scripts\Uninstall-MotWContext.ps1" -Destination $ReleaseDir
 
@@ -70,19 +71,30 @@ Write-Host "`nGenerating release notes..." -ForegroundColor Cyan
 $releaseNotes = @"
 # MotW Tools v$Version
 
-Improved release of MotW Tools with enhanced PowerShell logging and error handling.
+Major philosophical shift from "MotW removal" to "zone reassignment" with improved IT policy messaging.
 
-## What's New in v1.0.1
+## What's New in v1.1.0
 
-**PowerShell Scripts**
-- Added comprehensive logging to all PowerShell scripts
-- Added ``-WhatIf`` and ``-Confirm`` support for safe testing
-- Optimized path resolution with hashtable-based deduplication
-- Enhanced error handling with specific error messages
-- Added colored console output for better visibility
-- Added success/failure counters for batch operations
-- Hybrid installer approach (tries local MotW.ps1, falls back to embedded)
-- Proper COM object disposal in installer
+**Philosophy Change: Zone Reassignment > Removal**
+- Tools now emphasize reassigning files between security zones rather than removing MotW entirely
+- Clear messaging: This is a workaround for improperly configured IT policies, not a security bypass
+- Target audience: Professionals dealing with underwhelming IT departments
+- Intentional friction (progressive washing) reminds users to push IT to fix root causes
+
+**PowerShell Scripts (v1.1.0)**
+- **NEW**: ``reassign`` action (default) - Progressive zone washing (3→2→1→0→remove)
+- **NEW**: ``-TargetZone`` parameter for direct zone reassignment
+- **NEW**: Zone helper functions (Get-ZoneId, Set-ZoneId, Get-ZoneName)
+- **NEW**: RFC 5424 logging levels (Emergency/Alert/Critical/Error/Warning/Notice/Info/Debug)
+- **NEW**: Interactive MotW-SendTo.ps1 wrapper for "Send To" menu
+- Color-coded status output by zone (Red=Zone 3, Yellow=Zone 2, Green=Zone 1, Cyan=Zone 0)
+
+**Installer Improvements (v1.1.0)**
+- **NEW**: Environment detection (Send To, Context Menu, .NET Runtime availability)
+- **NEW**: Smart recommendations based on environment capabilities
+- Creates "Send To → MotW - Reassign" shortcut with interactive zone selection
+- Detects restrictive environments and adapts installation accordingly
+- Installs MotW-SendTo.ps1 interactive wrapper
 
 **GUI Application**
 - Added keyboard shortcuts (Ctrl+A, Ctrl+U, Ctrl+L, Delete, F5, Ctrl+B)
@@ -100,8 +112,9 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 - **MotWatcher.exe** (≈197 KB) - System tray file watcher - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 **PowerShell Scripts**
-- **MotW.ps1** - CLI tool for batch operations
-- **Install-MotWContext.ps1** - One-click installer
+- **MotW.ps1** - CLI tool for zone reassignment and status checking
+- **MotW-SendTo.ps1** - Interactive wrapper for "Send To" menu integration
+- **Install-MotWContext.ps1** - One-click installer with environment detection
 - **Uninstall-MotWContext.ps1** - Clean uninstaller
 
 **Verification**
@@ -128,12 +141,20 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 - Comprehensive logging to %LOCALAPPDATA%\MotW\motw.log
 
 **MotW.ps1 (PowerShell)**
-- Three actions: ``unblock``, ``add``, ``status``
+- Four actions: ``reassign`` (default), ``add``, ``status``, ``unblock``
+- Progressive zone washing (3→2→1→0→remove) or direct with ``-TargetZone``
+- Zone helper functions (Get-ZoneId, Set-ZoneId, Get-ZoneName)
 - ``-WhatIf`` and ``-Confirm`` support for safe testing
 - Recursive directory processing with ``-Recurse``
-- Comprehensive logging to %LOCALAPPDATA%\MotW\motw.log
-- Colored console output
-- Success/failure counters
+- RFC 5424 logging levels (Emergency through Debug)
+- Color-coded zone output (Red=Zone 3, Yellow=Zone 2, Green=Zone 1, Cyan=Zone 0)
+
+**MotW-SendTo.ps1 (Interactive Wrapper)**
+- Educational interactive prompt for zone selection
+- Only shows valid target zones (can only move down or remove)
+- Color-coded current zone display
+- Intentional friction - requires conscious choice
+- Works via "Send To" menu (no registry editing required)
 
 ## Quick Start
 
@@ -143,9 +164,21 @@ Improved release of MotW Tools with enhanced PowerShell logging and error handli
 
 **PowerShell**:
 ``````powershell
+# Install (with environment detection)
 .\Install-MotWContext.ps1
-MotW.ps1 *.pdf
+
+# Progressive zone washing
+MotW.ps1 reassign *.pdf
+
+# Direct reassignment to Trusted Sites
+MotW.ps1 reassign *.pdf -TargetZone 2
+
+# Check zone status
+MotW.ps1 status .
 ``````
+
+**Send To Menu**:
+Right-click file → Send To → MotW - Reassign → Choose target zone interactively
 
 ## Security
 
