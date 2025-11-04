@@ -1,6 +1,8 @@
 using System.Drawing;
 using System.Windows;
 using System.Windows.Forms;
+using MotW.Shared.Models;
+using MotW.Shared.Services;
 using MotW.Shared.Utils;
 using MotWatcher.Services;
 using Application = System.Windows.Application;
@@ -15,13 +17,15 @@ public partial class App : Application
     private NotifyIcon? _notifyIcon;
     private FileWatcherService? _watcherService;
     private Models.WatcherConfig? _config;
+    private WatcherStatistics? _statistics;
 
     private void Application_Startup(object sender, StartupEventArgs e)
     {
         Logger.Info("MotWatcher starting...");
 
-        // Load configuration
+        // Load configuration and statistics
         _config = ConfigService.Load();
+        _statistics = StatisticsService.Load();
 
         // Create system tray icon
         _notifyIcon = new NotifyIcon
@@ -43,6 +47,10 @@ public partial class App : Application
 
         contextMenu.Items.Add(new ToolStripSeparator());
 
+        var statisticsItem = new ToolStripMenuItem("Statistics...");
+        statisticsItem.Click += Statistics_Click;
+        contextMenu.Items.Add(statisticsItem);
+
         var settingsItem = new ToolStripMenuItem("Settings...");
         settingsItem.Click += Settings_Click;
         contextMenu.Items.Add(settingsItem);
@@ -50,6 +58,10 @@ public partial class App : Application
         var openLogItem = new ToolStripMenuItem("Open Log Folder");
         openLogItem.Click += OpenLog_Click;
         contextMenu.Items.Add(openLogItem);
+
+        var runRulesItem = new ToolStripMenuItem("Run Rules Now...");
+        runRulesItem.Click += RunRules_Click;
+        contextMenu.Items.Add(runRulesItem);
 
         contextMenu.Items.Add(new ToolStripSeparator());
 
@@ -124,6 +136,22 @@ public partial class App : Application
         }
     }
 
+    private void Statistics_Click(object? sender, EventArgs e)
+    {
+        if (_statistics == null)
+            return;
+
+        var statisticsWindow = new StatisticsWindow(_statistics)
+        {
+            Owner = null
+        };
+
+        statisticsWindow.ShowDialog();
+
+        // Reload statistics in case they were reset
+        _statistics = StatisticsService.Load();
+    }
+
     private void Settings_Click(object? sender, EventArgs e)
     {
         if (_config == null)
@@ -188,6 +216,50 @@ public partial class App : Application
         }
     }
 
+    private async void RunRules_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            Logger.Info("Manual 'Run Rules Now' triggered by user");
+
+            var result = System.Windows.MessageBox.Show(
+                "This will scan all configured directories and apply zone rules to existing files.\n\n" +
+                "Files will be processed based on your current settings:\n" +
+                "- Watched directories and their rules\n" +
+                "- Minimum zone ID thresholds\n" +
+                "- Target zone assignments\n\n" +
+                "Continue?",
+                "Run Rules Now",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                Logger.Info("User cancelled manual rule execution");
+                return;
+            }
+
+            await Task.Run(() => _watcherService?.RunRulesOnExistingFiles());
+
+            _notifyIcon?.ShowBalloonTip(
+                3000,
+                "Rules Executed",
+                "All configured directories have been processed.",
+                ToolTipIcon.Info);
+
+            Logger.Info("Manual rule execution completed");
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"Failed to run rules: {ex.Message}");
+            System.Windows.MessageBox.Show(
+                $"Failed to run rules: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private void Exit_Click(object? sender, EventArgs e)
     {
         Logger.Info("Exit requested by user.");
@@ -201,6 +273,13 @@ public partial class App : Application
 
     private void OnFileProcessed(object? sender, FileProcessedEventArgs e)
     {
+        // Record statistics for successful operations
+        if (e.Success && _statistics != null)
+        {
+            StatisticsService.RecordFileProcessed(_statistics, e.FilePath, e.FileSize, e.ZoneId);
+        }
+
+        // Show notification if enabled
         if (_config?.NotifyOnProcess == true && _notifyIcon != null)
         {
             var fileName = System.IO.Path.GetFileName(e.FilePath);
@@ -209,8 +288,9 @@ public partial class App : Application
                 ? $"Successfully unblocked: {fileName}"
                 : $"Failed to unblock {fileName}: {e.Message}";
 
+            // Show balloon tip with 5 second timeout (will auto-dismiss)
             _notifyIcon.ShowBalloonTip(
-                3000,
+                5000,
                 title,
                 message,
                 e.Success ? ToolTipIcon.Info : ToolTipIcon.Warning);
