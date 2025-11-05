@@ -102,7 +102,14 @@ namespace MotWatcher.Services
 
             // Cancel processing task
             _cts.Cancel();
-            _processingTask?.Wait(TimeSpan.FromSeconds(5));
+            try
+            {
+                _processingTask?.Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is TaskCanceledException or OperationCanceledException))
+            {
+                // Expected when cancelling the task, safe to ignore
+            }
 
             Logger.Info("FileWatcherService stopped.");
         }
